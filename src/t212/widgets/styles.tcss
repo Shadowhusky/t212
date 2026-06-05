@@ -1,0 +1,3 @@
+.gain { color: $success; }
+.loss { color: $error; }
+.flat { color: $text-muted; }
