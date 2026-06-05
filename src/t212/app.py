@@ -45,14 +45,49 @@ class T212App(App):
         for th in THEMES.values():
             self.register_theme(th)
         self.theme = "t212-dark"
+        self.set_interval(self._refresh_seconds(), self.do_refresh)
+        self.run_worker(self.do_refresh())
+
+    def _refresh_seconds(self) -> float:
+        return 10.0
 
     def compose(self) -> ComposeResult:
         yield SummaryHeader(self.environment, self.currency)
         with ContentSwitcher(initial="dashboard", id="body"):
+            from t212.screens.dashboard import Dashboard
+            yield Dashboard()
             from textual.widgets import Static
-            for tab_id, label in TABS:
+            for tab_id, label in TABS[1:]:
                 yield Static(label, id=tab_id)
         yield Footer()
+
+    async def do_refresh(self) -> None:
+        data = await self.scheduler.poll_once()
+        if self.resolver is None:
+            from t212.resolve import Resolver
+            try:
+                self.resolver = Resolver(await self.client.instruments(),
+                                         await self.client.exchanges())
+            except Exception:
+                self.resolver = Resolver([], [])
+        cash = data.get("cash")
+        positions = data.get("portfolio", [])
+        if cash is not None:
+            self.store.record(cash, positions, self.currency)
+        today = 0.0
+        if cash is not None:
+            base = self.store.today_baseline()
+            today = (cash.total - base) if base is not None else 0.0
+        status = "● live" if self.scheduler.last_error is None else "◐ reconnecting"
+        self.query_one(SummaryHeader).update_data(
+            total=cash.total if cash else 0.0, today=today,
+            free=cash.free if cash else 0.0, invested=cash.invested if cash else 0.0,
+            status=status, privacy=self.privacy)
+        if cash is not None:
+            self.query_one("#dashboard").update_data(
+                cash=cash, positions=positions, resolver=self.resolver,
+                currency=self.currency, today=today,
+                series=self.store.equity_series(), privacy=self.privacy)
 
     def watch_active_tab(self, tab: str) -> None:
         switcher = self.query_one("#body", ContentSwitcher)

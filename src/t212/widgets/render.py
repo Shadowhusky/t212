@@ -26,3 +26,24 @@ def pnl_text(value: float, pct: float | None, currency: str, *, blur: bool = Fal
     if pct is not None:
         body += f"  {f.percent(pct)}"
     return Text(body, style=cls)
+
+
+PNL_TAG = {"gain": "$success", "loss": "$error", "flat": "$text-muted"}
+_PNL_COLOR = {"gain": "green", "loss": "red", "flat": "dim"}
+
+
+def pnl_markup(value: float, pct: float | None, currency: str, *, blur: bool = False) -> str:
+    """Textual markup fragment for Static/Content bodies."""
+    tag = PNL_TAG[f.pnl_class(value)]
+    body = f"{f.arrow(value)} {f.signed_money(value, currency, blur=blur)}"
+    if pct is not None:
+        body += f"  {f.percent(pct)}"
+    return f"[{tag}]{body}[/{tag}]"
+
+
+def pnl_cell(value: float, currency: str, pct: float | None = None, *, blur: bool = False) -> Text:
+    """Rich Text with a valid named colour, for DataTable cells."""
+    body = f"{f.arrow(value)} {f.signed_money(value, currency, blur=blur)}"
+    if pct is not None:
+        body += f"  {f.percent(pct)}"
+    return Text(body, style=_PNL_COLOR[f.pnl_class(value)])
