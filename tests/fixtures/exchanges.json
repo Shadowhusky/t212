@@ -1,0 +1,4 @@
+[
+  { "id": 1, "name": "NASDAQ", "workingSchedules": [ { "id": 1 } ] },
+  { "id": 2, "name": "LSE", "workingSchedules": [ { "id": 2 } ] }
+]

@@ -1,0 +1,5 @@
+{ "items": [
+    { "id": 9001, "ticker": "AAPL_US_EQ", "type": "MARKET", "status": "FILLED", "filledQuantity": 2.0, "fillPrice": 187.10, "fillCost": 374.20, "dateCreated": "2026-06-04T14:11:00.000+00:00" },
+    { "id": 9000, "ticker": "TSLA_US_EQ", "type": "LIMIT", "status": "FILLED", "filledQuantity": 3.0, "fillPrice": 240.00, "fillCost": 720.00, "dateCreated": "2026-06-02T09:30:00.000+00:00" }
+  ],
+  "nextPagePath": "/api/v0/equity/history/orders?cursor=8999&limit=20" }

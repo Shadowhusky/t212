@@ -1,0 +1,5 @@
+[
+  { "id": 42, "cash": 3.10, "progress": 0.78, "status": "AHEAD",
+    "result": { "priceAvgInvestedValue": 7591.70, "priceAvgValue": 8204.10, "priceAvgResult": 612.40, "priceAvgResultCoef": 0.0807 },
+    "dividendDetails": { "gained": 42.18, "reinvested": 40.00, "inCash": 2.18 } }
+]

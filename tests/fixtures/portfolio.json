@@ -1,0 +1,5 @@
+[
+  { "ticker": "AAPL_US_EQ", "quantity": 12.0, "averagePrice": 176.60, "currentPrice": 187.40, "ppl": 129.60, "fxPpl": -2.10, "initialFillDate": "2025-11-04T10:00:00.000+00:00", "maxBuy": 120.0, "maxSell": 12.0, "pieQuantity": 0.0 },
+  { "ticker": "TSLA_US_EQ", "quantity": 8.0, "averagePrice": 237.40, "currentPrice": 233.10, "ppl": -34.40, "fxPpl": -2.10, "initialFillDate": "2025-11-04T10:00:00.000+00:00", "maxBuy": 50.0, "maxSell": 8.0, "pieQuantity": 2.3 },
+  { "ticker": "VUSA_GB_EQ", "quantity": 30.0, "averagePrice": 77.90, "currentPrice": 78.20, "ppl": 9.00, "fxPpl": 0.0, "initialFillDate": "2025-10-01T10:00:00.000+00:00", "maxBuy": 500.0, "maxSell": 30.0, "pieQuantity": 0.0 }
+]

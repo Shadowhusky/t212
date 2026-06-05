@@ -1,0 +1,5 @@
+[
+  { "ticker": "AAPL_US_EQ", "type": "STOCK", "isin": "US0378331005", "currencyCode": "USD", "name": "Apple Inc.", "shortName": "AAPL", "workingScheduleId": 1 },
+  { "ticker": "TSLA_US_EQ", "type": "STOCK", "isin": "US88160R1014", "currencyCode": "USD", "name": "Tesla Inc.", "shortName": "TSLA", "workingScheduleId": 1 },
+  { "ticker": "VUSA_GB_EQ", "type": "ETF", "isin": "IE00B3XXRP09", "currencyCode": "GBP", "name": "Vanguard S&P 500 ETF", "shortName": "VUSA", "workingScheduleId": 2 }
+]
