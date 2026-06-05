@@ -4,7 +4,8 @@ from textual.containers import Vertical
 from textual.widgets import Static
 from textual.content import Content
 from t212 import formatting as f
-from t212.widgets.render import bar, PNL_TAG
+from t212.charts import window_series
+from t212.widgets.render import bar, PNL_TAG, sparkline
 
 
 class Dashboard(Vertical):
@@ -37,6 +38,11 @@ class Dashboard(Vertical):
             lines.append(
                 f"{resolver.short_name(p.ticker):<8}"
                 f"[{tag}]{f.arrow(p.ppl)} {f.percent(p.pnl_pct or 0.0)}[/{tag}]")
+        pts = [v for _, v in window_series(series or [], 0)]
+        if len(pts) >= 2:
+            lines.append("")
+            lines.append("[dim]EQUITY · since first run[/dim]")
+            lines.append(sparkline(pts, 48))
         self.query_one("#dash-metrics", Static).update(Content.from_markup("\n".join(lines)))
 
 

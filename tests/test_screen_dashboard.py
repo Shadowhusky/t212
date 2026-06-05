@@ -20,3 +20,19 @@ async def test_dashboard_shows_value_and_pnl():
         await pilot.pause()
         assert "£24,813.07" in _plain(app.query_one(SummaryHeader))
         assert "+£1,204.33" in _plain(app.query_one("#dash-metrics", Static))
+
+
+async def test_dashboard_renders_equity_when_points_exist():
+    app = T212App(client=MockT212Client(FIX), environment="demo", currency="GBP")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.do_refresh()
+        # Insert a second snapshot at a distinct timestamp to guarantee >=2 rows.
+        app.store.db.execute(
+            "INSERT OR REPLACE INTO equity_snapshots VALUES (?,?,?,?,?,?,?)",
+            (1, 24000.0, 1000.0, 23000.0, 0.0, 0.0, "GBP"))
+        app.store.db.commit()
+        await app.do_refresh()
+        await pilot.pause()
+        text = _plain(app.query_one("#dash-metrics", Static))
+        assert "EQUITY" in text
