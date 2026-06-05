@@ -58,10 +58,12 @@ class T212App(App):
         with ContentSwitcher(initial="dashboard", id="body"):
             from t212.screens.dashboard import Dashboard
             from t212.screens.positions import Positions
+            from t212.screens.pies import Pies
             yield Dashboard()
             yield Positions()
+            yield Pies()
             from textual.widgets import Static
-            for tab_id, label in TABS[2:]:
+            for tab_id, label in TABS[3:]:
                 yield Static(label, id=tab_id)
         yield Footer()
 
@@ -98,6 +100,10 @@ class T212App(App):
             self.query_one("#positions").update_data(
                 positions=positions, resolver=self.resolver, currency=self.currency,
                 total_value=total_value, privacy=self.privacy)
+        pies = data.get("pies")
+        if pies is not None:
+            self.query_one("#pies").update_data(
+                pies=pies, currency=self.currency, privacy=self.privacy)
 
     def watch_active_tab(self, tab: str) -> None:
         switcher = self.query_one("#body", ContentSwitcher)
@@ -124,17 +130,20 @@ class T212App(App):
         self.notify("1-5 tabs · ↑↓ move · ⏎ detail · z privacy · t theme · r refresh · q quit",
                     title="Keys", timeout=6)
 
-    def on_data_table_row_selected(self, event) -> None:
-        if event.data_table.id != "positions-table":
-            return
-        ticker = event.row_key.value
-        pos = next((p for p in self._positions if p.ticker == ticker), None)
-        if pos is None:
-            return
-        from t212.screens.position_detail import PositionDetail
-        self.push_screen(PositionDetail(
-            pos, self.resolver, self.currency,
-            self.store.position_series(ticker), self.privacy))
+    async def on_data_table_row_selected(self, event) -> None:
+        tid = event.data_table.id
+        if tid == "positions-table":
+            ticker = event.row_key.value
+            pos = next((p for p in self._positions if p.ticker == ticker), None)
+            if pos is not None:
+                from t212.screens.position_detail import PositionDetail
+                self.push_screen(PositionDetail(
+                    pos, self.resolver, self.currency,
+                    self.store.position_series(ticker), self.privacy))
+        elif tid == "pies-table":
+            from t212.screens.pie_detail import PieDetailScreen
+            detail = await self.client.pie(int(event.row_key.value))
+            self.push_screen(PieDetailScreen(detail, self.resolver, self.currency, self.privacy))
 
     def action_sort(self) -> None:
         if self.active_tab != "positions":
