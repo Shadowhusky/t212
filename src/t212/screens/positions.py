@@ -2,9 +2,7 @@ from __future__ import annotations
 from textual.app import ComposeResult
 from textual.widgets import DataTable, Static
 from t212 import formatting as f
-from t212.widgets.render import pnl_cell
-
-COLUMNS = ["TICKER", "NAME", "QTY", "AVG", "NOW", "VALUE", "P&L", "P&L%", "WEIGHT"]
+from t212.widgets.render import pnl_cell, columns_for_width, POSITION_COLUMNS_FULL, POSITION_COLUMNS_COMPACT
 
 
 class Positions(Static):
@@ -15,29 +13,36 @@ class Positions(Static):
 
     def compose(self) -> ComposeResult:
         table = DataTable(id="positions-table", cursor_type="row", zebra_stripes=False)
-        table.add_columns(*COLUMNS)
+        table.add_columns(*POSITION_COLUMNS_FULL)
         yield table
 
     def update_data(self, *, positions, resolver, currency: str, total_value: float,
                     privacy: bool) -> None:
         table = self.query_one("#positions-table", DataTable)
-        table.clear()
+        width = self.app.size.width or 120
+        cols = columns_for_width(POSITION_COLUMNS_FULL, POSITION_COLUMNS_COMPACT, width)
+        money = f.compact_money if width < 64 else f.money
+        table.clear(columns=True)
+        table.add_columns(*cols)
         rows = sorted(positions, key=self._sortfn, reverse=self._reverse)
+        if not rows:
+            table.add_row("No open positions", *[""] * (len(cols) - 1))
+            return
         for p in rows:
             pct = p.pnl_pct or 0.0
             weight = (p.market_value / total_value) if total_value else 0.0
-            table.add_row(
-                resolver.short_name(p.ticker),
-                resolver.long_name(p.ticker)[:22],
-                f"{p.quantity:g}",
-                f"{p.average_price:,.2f}",
-                f"{p.current_price:,.2f}",
-                f.money(p.market_value, currency, blur=privacy),
-                pnl_cell(p.ppl, currency, blur=privacy),
-                f.percent(pct),
-                f"{weight * 100:.1f}%",
-                key=p.ticker,
-            )
+            full = {
+                "TICKER": resolver.short_name(p.ticker),
+                "NAME": resolver.long_name(p.ticker)[:22],
+                "QTY": f"{p.quantity:g}",
+                "AVG": f"{p.average_price:,.2f}",
+                "NOW": f"{p.current_price:,.2f}",
+                "VALUE": money(p.market_value, currency, blur=privacy),
+                "P&L": pnl_cell(p.ppl, currency, blur=privacy),
+                "P&L%": f.percent(pct),
+                "WEIGHT": f"{weight * 100:.1f}%",
+            }
+            table.add_row(*[full[c] for c in cols], key=p.ticker)
 
     def _sortfn(self, p):
         return {"pnl_pct": p.pnl_pct or 0.0, "value": p.market_value,

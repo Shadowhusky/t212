@@ -19,6 +19,9 @@ class Pies(Static):
     def update_data(self, *, pies, currency: str, privacy: bool) -> None:
         table = self.query_one("#pies-table", DataTable)
         table.clear()
+        if not pies:
+            table.add_row("No pies", "", "", "", "", "", "")
+            return
         for pie in pies:
             r = pie.result
             divs = (pie.dividend_details or {}).get("gained", 0.0)

@@ -62,3 +62,6 @@ class History(Static):
                 table.add_row(
                     tx.date_time.strftime("%Y-%m-%d") if tx.date_time else "—",
                     tx.type, f.signed_money(tx.amount, cur), f.money(balance, cur))
+        if table.row_count == 0:
+            ncols = len(HEADERS[section])
+            table.add_row("(none)", *[""] * (ncols - 1))

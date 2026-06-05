@@ -72,6 +72,9 @@ class T212App(App):
 
     async def do_refresh(self) -> None:
         data = await self.scheduler.poll_once()
+        info = data.get("account_info")
+        if info is not None:
+            self.currency = info.currency_code
         if self.resolver is None:
             from t212.resolve import Resolver
             try:
@@ -133,8 +136,8 @@ class T212App(App):
         self.theme = names[self._theme_idx]
 
     def action_refresh_now(self) -> None:
-        if self.scheduler:
-            self.scheduler.refresh_now()
+        self.scheduler.refresh_now()
+        self.run_worker(self.do_refresh())
 
     def action_help(self) -> None:
         self.notify("1-5 tabs · ↑↓ move · ⏎ detail · z privacy · t theme · r refresh · q quit",

@@ -47,3 +47,11 @@ def pnl_cell(value: float, currency: str, pct: float | None = None, *, blur: boo
     if pct is not None:
         body += f"  {f.percent(pct)}"
     return Text(body, style=_PNL_COLOR[f.pnl_class(value)])
+
+
+POSITION_COLUMNS_FULL = ["TICKER", "NAME", "QTY", "AVG", "NOW", "VALUE", "P&L", "P&L%", "WEIGHT"]
+POSITION_COLUMNS_COMPACT = ["TICKER", "QTY", "VALUE", "P&L%"]
+
+
+def columns_for_width(full, compact, width: int):
+    return full if width >= 100 else compact
