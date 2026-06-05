@@ -27,7 +27,7 @@ async def _run_once(client):
     return text
 
 
-@click.command()
+@click.group(invoke_without_command=True)
 @click.option("--demo", "environment", flag_value="demo", help="Use the demo/practice account.")
 @click.option("--live", "environment", flag_value="live", default=True, help="Use the live account (default).")
 @click.option("--mock", is_flag=True, help="Use bundled fixtures (offline).")
@@ -35,8 +35,11 @@ async def _run_once(client):
 @click.option("--once", "once", is_flag=True, help="Print a text summary and exit.")
 @click.option("--refresh", default=None, type=int, help="Portfolio poll seconds (TUI).")
 @click.option("--api-key", default=None, help="Override API key.")
-def main(environment, mock, fixtures, once, refresh, api_key):
+@click.pass_context
+def main(ctx, environment, mock, fixtures, once, refresh, api_key):
     """Read-only Trading 212 portfolio terminal."""
+    if ctx.invoked_subcommand is not None:
+        return
     if once:
         client = _make_client(mock, fixtures, environment, api_key)
         click.echo(asyncio.run(_run_once(client)))
@@ -44,3 +47,15 @@ def main(environment, mock, fixtures, once, refresh, api_key):
     from t212.app import run_app
     run_app(environment=environment, mock=mock, fixtures=fixtures,
             refresh=refresh, api_key=api_key)
+
+
+@main.command("config")
+@click.argument("action", type=click.Choice(["set-key"]))
+@click.option("--demo", "environment", flag_value="demo", help="Save the demo-account key.")
+@click.option("--live", "environment", flag_value="live", default=True, help="Save the live-account key (default).")
+def config_cmd(action, environment):
+    """Manage saved credentials. Currently: set-key."""
+    key = click.prompt(f"Trading 212 API key ({environment})", hide_input=True)
+    from t212.config import save_key, DEFAULT_CONFIG_PATH
+    save_key(DEFAULT_CONFIG_PATH, environment, key)
+    click.echo(f"Saved {environment} key to {DEFAULT_CONFIG_PATH} (chmod 600).")
