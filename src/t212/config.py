@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 import pathlib
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from t212.api.limits import LIVE_URL, DEMO_URL
 
 DEFAULT_CONFIG_PATH = pathlib.Path.home() / ".config" / "t212" / "config.toml"
@@ -15,7 +15,7 @@ class MissingKeyError(Exception):
 
 @dataclass
 class Settings:
-    api_key: str
+    api_key: str = field(repr=False)
     environment: str
     base_url: str
     refresh_seconds: int

@@ -31,3 +31,20 @@ async def test_scheduler_keeps_last_good_on_error():
     data = await sched.poll_once()
     assert "portfolio" in data
     assert sched.last_error is not None
+
+async def test_scheduler_clears_error_on_recovery():
+    class Flaky(MockT212Client):
+        def __init__(self, d): super().__init__(d); self.fail = False
+        async def portfolio(self):
+            if self.fail:
+                raise RuntimeError("boom")
+            return await super().portfolio()
+    c = Flaky(FIX)
+    sched = RefreshScheduler(c)
+    sched.set_active("positions")
+    c.fail = True
+    await sched.poll_once()
+    assert sched.last_error is not None
+    c.fail = False
+    await sched.poll_once()
+    assert sched.last_error is None

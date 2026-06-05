@@ -32,7 +32,7 @@ class T212App(App):
     privacy: reactive[bool] = reactive(False)
 
     def __init__(self, *, client, environment: str, currency: str,
-                 store=None, resolver=None, scheduler=None):
+                 store=None, resolver=None, scheduler=None, refresh_seconds: float = 10.0):
         super().__init__()
         from t212.scheduler import RefreshScheduler
         from t212.store import Store
@@ -44,6 +44,8 @@ class T212App(App):
         self.scheduler = scheduler or RefreshScheduler(client)
         self._theme_idx = 0
         self._positions = []
+        self._free = 0.0
+        self._refresh = refresh_seconds
 
     def on_mount(self) -> None:
         for th in THEMES.values():
@@ -53,7 +55,7 @@ class T212App(App):
         self.run_worker(self.do_refresh())
 
     def _refresh_seconds(self) -> float:
-        return 10.0
+        return self._refresh
 
     def compose(self) -> ComposeResult:
         yield SummaryHeader(self.environment, self.currency)
@@ -101,6 +103,7 @@ class T212App(App):
                 currency=self.currency, today=today,
                 series=self.store.equity_series(), privacy=self.privacy)
         self._positions = positions
+        self._free = cash.free if cash else 0.0
         if cash is not None:
             total_value = sum(p.market_value for p in positions) + cash.free
             self.query_one("#positions").update_data(
@@ -182,7 +185,7 @@ class T212App(App):
         positions_widget = self.query_one("#positions")
         positions_widget.cycle_sort()
         if self._positions:
-            total_value = sum(p.market_value for p in self._positions) + 0.0
+            total_value = sum(p.market_value for p in self._positions) + self._free
             positions_widget.update_data(
                 positions=self._positions, resolver=self.resolver, currency=self.currency,
                 total_value=total_value, privacy=self.privacy)
@@ -203,4 +206,5 @@ def run_app(*, environment, mock, fixtures, refresh, api_key):
         client = HttpT212Client(api_key=settings.api_key, base_url=settings.base_url,
                                 governor=RateLimitGovernor(RATE_LIMITS))
         currency = "GBP"
-    T212App(client=client, environment=environment, currency=currency).run()
+    rs = float(refresh) if refresh else 10.0
+    T212App(client=client, environment=environment, currency=currency, refresh_seconds=rs).run()

@@ -39,10 +39,15 @@ class RefreshScheduler:
 
     async def poll_once(self) -> dict:
         keys = needs_for_tab(self._active)
+        errored = False
         async def fetch(k):
+            nonlocal errored
             try:
                 self._cache[k] = await self._fetchers[k]()
             except Exception as e:
                 self.last_error = e
+                errored = True
         await asyncio.gather(*(fetch(k) for k in keys if k in self._fetchers))
+        if not errored:
+            self.last_error = None
         return dict(self._cache)
