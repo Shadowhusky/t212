@@ -1,0 +1,30 @@
+[project]
+name = "t212"
+version = "0.1.0"
+description = "Read-only Trading 212 portfolio terminal"
+authors = [{ name = "shadowhusky" }]
+requires-python = ">=3.11"
+dependencies = [
+    "textual>=0.85",
+    "textual-plotext>=0.2.1",
+    "httpx>=0.27",
+    "pydantic>=2.6",
+    "click>=8.1",
+]
+
+[project.scripts]
+t212 = "t212.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[build-system]
+requires = ["uv_build>=0.11.7,<0.12.0"]
+build-backend = "uv_build"
