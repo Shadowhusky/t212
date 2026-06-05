@@ -47,3 +47,9 @@ def test_instrument_cache_roundtrip(tmp_path):
     s.cache_instruments(payload)
     got, age = s.get_cached_instruments()
     assert got == payload and age == 0
+
+def test_default_db_path_is_per_account():
+    from t212.store import default_db_path
+    p = default_db_path("live", 1234567)
+    assert p.name == "live-1234567.sqlite"
+    assert ".local/share/t212" in str(p) or "t212" in str(p)
