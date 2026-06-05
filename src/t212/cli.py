@@ -1,0 +1,46 @@
+from __future__ import annotations
+import asyncio
+import pathlib
+import click
+from t212.api.limits import RATE_LIMITS
+from t212.api.mock import MockT212Client
+from t212.resolve import Resolver
+from t212.summary import build_summary, render_summary_text
+
+
+def _make_client(mock: bool, fixtures: str | None, environment: str, api_key: str | None):
+    if mock:
+        return MockT212Client(fixtures or (pathlib.Path(__file__).parent.parent.parent / "tests" / "fixtures"))
+    from t212.api.http import HttpT212Client
+    from t212.api.ratelimit import RateLimitGovernor
+    from t212.config import resolve_settings
+    settings = resolve_settings(environment=environment, api_key=api_key)
+    gov = RateLimitGovernor(RATE_LIMITS)
+    return HttpT212Client(api_key=settings.api_key, base_url=settings.base_url, governor=gov)
+
+
+async def _run_once(client):
+    summary = await build_summary(client)
+    resolver = Resolver(await client.instruments(), await client.exchanges())
+    text = render_summary_text(summary, resolver)
+    await client.aclose()
+    return text
+
+
+@click.command()
+@click.option("--demo", "environment", flag_value="demo", help="Use the demo/practice account.")
+@click.option("--live", "environment", flag_value="live", default=True, help="Use the live account (default).")
+@click.option("--mock", is_flag=True, help="Use bundled fixtures (offline).")
+@click.option("--fixtures", default=None, help="Fixtures dir for --mock.")
+@click.option("--once", "once", is_flag=True, help="Print a text summary and exit.")
+@click.option("--refresh", default=None, type=int, help="Portfolio poll seconds (TUI).")
+@click.option("--api-key", default=None, help="Override API key.")
+def main(environment, mock, fixtures, once, refresh, api_key):
+    """Read-only Trading 212 portfolio terminal."""
+    if once:
+        client = _make_client(mock, fixtures, environment, api_key)
+        click.echo(asyncio.run(_run_once(client)))
+        return
+    from t212.app import run_app
+    run_app(environment=environment, mock=mock, fixtures=fixtures,
+            refresh=refresh, api_key=api_key)
