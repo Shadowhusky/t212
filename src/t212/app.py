@@ -21,6 +21,7 @@ class T212App(App):
         Binding("z", "privacy", "Privacy"),
         Binding("t", "cycle_theme", "Theme"),
         Binding("r", "refresh_now", "Refresh"),
+        Binding("s", "sort", "Sort"),
         Binding("question_mark", "help", "Help"),
         Binding("q", "quit", "Quit"),
     ]
@@ -40,6 +41,7 @@ class T212App(App):
         self.resolver = resolver
         self.scheduler = scheduler or RefreshScheduler(client)
         self._theme_idx = 0
+        self._positions = []
 
     def on_mount(self) -> None:
         for th in THEMES.values():
@@ -55,9 +57,11 @@ class T212App(App):
         yield SummaryHeader(self.environment, self.currency)
         with ContentSwitcher(initial="dashboard", id="body"):
             from t212.screens.dashboard import Dashboard
+            from t212.screens.positions import Positions
             yield Dashboard()
+            yield Positions()
             from textual.widgets import Static
-            for tab_id, label in TABS[1:]:
+            for tab_id, label in TABS[2:]:
                 yield Static(label, id=tab_id)
         yield Footer()
 
@@ -88,6 +92,12 @@ class T212App(App):
                 cash=cash, positions=positions, resolver=self.resolver,
                 currency=self.currency, today=today,
                 series=self.store.equity_series(), privacy=self.privacy)
+        self._positions = positions
+        if cash is not None:
+            total_value = sum(p.market_value for p in positions) + cash.free
+            self.query_one("#positions").update_data(
+                positions=positions, resolver=self.resolver, currency=self.currency,
+                total_value=total_value, privacy=self.privacy)
 
     def watch_active_tab(self, tab: str) -> None:
         switcher = self.query_one("#body", ContentSwitcher)
@@ -113,6 +123,29 @@ class T212App(App):
     def action_help(self) -> None:
         self.notify("1-5 tabs · ↑↓ move · ⏎ detail · z privacy · t theme · r refresh · q quit",
                     title="Keys", timeout=6)
+
+    def on_data_table_row_selected(self, event) -> None:
+        if event.data_table.id != "positions-table":
+            return
+        ticker = event.row_key.value
+        pos = next((p for p in self._positions if p.ticker == ticker), None)
+        if pos is None:
+            return
+        from t212.screens.position_detail import PositionDetail
+        self.push_screen(PositionDetail(
+            pos, self.resolver, self.currency,
+            self.store.position_series(ticker), self.privacy))
+
+    def action_sort(self) -> None:
+        if self.active_tab != "positions":
+            return
+        positions_widget = self.query_one("#positions")
+        positions_widget.cycle_sort()
+        if self._positions:
+            total_value = sum(p.market_value for p in self._positions) + 0.0
+            positions_widget.update_data(
+                positions=self._positions, resolver=self.resolver, currency=self.currency,
+                total_value=total_value, privacy=self.privacy)
 
 
 def run_app(*, environment, mock, fixtures, refresh, api_key):
