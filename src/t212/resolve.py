@@ -26,3 +26,6 @@ class Resolver:
         if not inst or inst.working_schedule_id is None:
             return None
         return self._exchange_by_schedule.get(inst.working_schedule_id)
+
+    def all_instruments(self) -> list[Instrument]:
+        return list(self._by_ticker.values())

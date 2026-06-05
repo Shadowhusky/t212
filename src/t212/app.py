@@ -22,6 +22,8 @@ class T212App(App):
         Binding("t", "cycle_theme", "Theme"),
         Binding("r", "refresh_now", "Refresh"),
         Binding("s", "sort", "Sort"),
+        Binding("left", "history_section(-1)", "Prev section", show=False),
+        Binding("right", "history_section(1)", "Next section", show=False),
         Binding("question_mark", "help", "Help"),
         Binding("q", "quit", "Quit"),
     ]
@@ -59,12 +61,13 @@ class T212App(App):
             from t212.screens.dashboard import Dashboard
             from t212.screens.positions import Positions
             from t212.screens.pies import Pies
+            from t212.screens.history import History
+            from t212.screens.search import Search
             yield Dashboard()
             yield Positions()
             yield Pies()
-            from textual.widgets import Static
-            for tab_id, label in TABS[3:]:
-                yield Static(label, id=tab_id)
+            yield History(self.client, self.currency)
+            yield Search()
         yield Footer()
 
     async def do_refresh(self) -> None:
@@ -108,8 +111,15 @@ class T212App(App):
     def watch_active_tab(self, tab: str) -> None:
         switcher = self.query_one("#body", ContentSwitcher)
         switcher.current = tab
-        if self.scheduler:
-            self.scheduler.set_active(tab)
+        self.scheduler.set_active(tab)
+        if tab == "history":
+            hist = self.query_one("#history")
+            self.run_worker(hist.load_section(hist.section))
+        elif tab == "search":
+            search = self.query_one("#search")
+            search.held = {p.ticker: p.quantity for p in self._positions}
+            if self.resolver is not None:
+                search.set_universe(self.resolver.all_instruments())
 
     def action_tab(self, tab: str) -> None:
         self.active_tab = tab
@@ -144,6 +154,24 @@ class T212App(App):
             from t212.screens.pie_detail import PieDetailScreen
             detail = await self.client.pie(int(event.row_key.value))
             self.push_screen(PieDetailScreen(detail, self.resolver, self.currency, self.privacy))
+        elif tid == "search-table":
+            from t212.screens.instrument_detail import InstrumentDetail
+            ticker = event.row_key.value
+            inst = self.resolver.instrument(ticker) if self.resolver else None
+            if inst is None:
+                inst = next((x for x in self.query_one("#search")._instruments
+                             if x.ticker == ticker), None)
+            if inst is not None:
+                held = next((p.quantity for p in self._positions if p.ticker == ticker), None)
+                self.push_screen(InstrumentDetail(inst, self.resolver, held))
+
+    def action_history_section(self, delta: int) -> None:
+        if self.active_tab != "history":
+            return
+        from t212.screens.history import SECTIONS
+        hist = self.query_one("#history")
+        i = (SECTIONS.index(hist.section) + delta) % len(SECTIONS)
+        self.run_worker(hist.load_section(SECTIONS[i]))
 
     def action_sort(self) -> None:
         if self.active_tab != "positions":
