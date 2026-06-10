@@ -61,6 +61,18 @@ async def test_help_modal_toggles_with_question_mark():
         await pilot.press("question_mark")
         assert not isinstance(app.screen, HelpScreen)
 
+async def test_refresh_key_gives_feedback():
+    app = make_app()
+    async with app.run_test() as pilot:
+        await app.workers.wait_for_complete()
+        await pilot.press("r")
+        await app.workers.wait_for_complete()
+        await pilot.pause()
+        msgs = [n.message for n in app._notifications]
+        assert "Refreshing…" in msgs
+        assert "Refreshed" in msgs
+        assert "● live" in app.query_one(SummaryHeader).visual.plain
+
 async def test_privacy_marker_in_header():
     app = make_app()
     async with app.run_test() as pilot:

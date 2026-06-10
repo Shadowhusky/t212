@@ -41,16 +41,44 @@ async def test_history_orders_realized_pnl_and_fees():
         # fixture has a nextPagePath → load-more hint visible
         assert "load more" in app.query_one("#history-more").visual.plain
 
-async def test_history_load_more_clears_hint():
+async def test_history_load_more_appends_and_clears_hint():
     app = T212App(client=MockT212Client(FIX), environment="demo", currency="GBP")
     async with app.run_test() as pilot:
         await pilot.pause()
         hist = app.query_one("#history")
         await hist.load_section("orders")
-        await hist.load_more()   # mock get_page returns no items, no next path
+        n = await hist.load_more()   # mock serves one page-2 order, no next path
         await pilot.pause()
-        assert app.query_one("#history-table", DataTable).row_count == 2
+        assert n == 1
+        table = app.query_one("#history-table", DataTable)
+        assert table.row_count == 3
+        assert any("VUSA" in str(c) for c in table.get_row_at(2))
         assert app.query_one("#history-more").visual.plain == ""
+        assert await hist.load_more() is None
+
+async def test_history_more_key_notifies():
+    app = T212App(client=MockT212Client(FIX), environment="demo", currency="GBP")
+    async with app.run_test() as pilot:
+        await pilot.press("4")
+        await app.workers.wait_for_complete()
+        await pilot.press("m")
+        await app.workers.wait_for_complete()
+        await pilot.pause()
+        msgs = [n.message for n in app._notifications]
+        assert "Loaded 1 more" in msgs
+        await pilot.press("m")
+        await app.workers.wait_for_complete()
+        await pilot.pause()
+        msgs = [n.message for n in app._notifications]
+        assert "No more pages" in msgs
+
+async def test_history_more_warns_on_other_tabs():
+    app = T212App(client=MockT212Client(FIX), environment="demo", currency="GBP")
+    async with app.run_test() as pilot:
+        await pilot.press("m")
+        await pilot.pause()
+        msgs = [n.message for n in app._notifications]
+        assert any("History tab" in m for m in msgs)
 
 async def test_history_dividend_and_transaction_stats():
     app = T212App(client=MockT212Client(FIX), environment="demo", currency="GBP")

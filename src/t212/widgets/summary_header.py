@@ -26,6 +26,10 @@ class SummaryHeader(Static):
         self._status, self._privacy = status, privacy
         self.update(self._render())
 
+    def set_status(self, status: str) -> None:
+        self._status = status
+        self.update(self._render())
+
     def _render(self) -> Content:
         cur = self.currency
         pnl_tag = _PNL_TAG[f.pnl_class(self._today)]

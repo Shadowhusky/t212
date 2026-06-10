@@ -25,7 +25,14 @@ async def test_mock_history_pages():
     assert (await c.dividends()).items[0].amount == 4.20
     assert (await c.transactions()).items[2].type == "WITHDRAW"
 
-async def test_mock_get_page_is_empty():
+async def test_mock_get_page_serves_orders_page2():
     c = MockT212Client(FIX)
-    assert await c.get_page("/api/v0/equity/history/orders?cursor=1") == {
+    page = await c.get_page("/api/v0/equity/history/orders?cursor=1")
+    assert len(page["items"]) == 1
+    assert page["items"][0]["order"]["ticker"] == "VUSA_GB_EQ"
+    assert page["nextPagePath"] is None
+
+async def test_mock_get_page_empty_for_other_paths():
+    c = MockT212Client(FIX)
+    assert await c.get_page("/api/v0/history/dividends?cursor=1") == {
         "items": [], "nextPagePath": None}

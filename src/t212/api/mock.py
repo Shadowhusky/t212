@@ -55,6 +55,8 @@ class MockT212Client:
         return self._page("transactions", Transaction)
 
     async def get_page(self, path: str) -> dict:
+        if "history/orders" in path:
+            return self._load("history_orders_page2")
         return {"items": [], "nextPagePath": None}
 
     async def aclose(self) -> None:

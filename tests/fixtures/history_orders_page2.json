@@ -1,0 +1,33 @@
+{
+  "items": [
+    {
+      "order": {
+        "id": 8999,
+        "side": "BUY",
+        "type": "MARKET",
+        "status": "FILLED",
+        "ticker": "VUSA_GB_EQ",
+        "createdAt": "2026-05-28T10:05:00Z",
+        "filledQuantity": 5.0,
+        "filledValue": 390.00,
+        "instrument": { "currency": "GBP", "isin": "IE00B3XXRP09", "name": "Vanguard S&P 500 UCITS ETF", "ticker": "VUSA_GB_EQ" }
+      },
+      "fill": {
+        "filledAt": "2026-05-28T10:05:03Z",
+        "id": 4999,
+        "price": 78.00,
+        "quantity": 5.0,
+        "tradingMethod": "TOTV",
+        "type": "TRADE",
+        "walletImpact": {
+          "currency": "GBP",
+          "fxRate": 1.0,
+          "netValue": 390.00,
+          "realisedProfitLoss": 0.0,
+          "taxes": []
+        }
+      }
+    }
+  ],
+  "nextPagePath": null
+}

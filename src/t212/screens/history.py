@@ -62,14 +62,16 @@ class History(Static):
             table.add_row("(none)", *[""] * (ncols - 1))
         self._render_chrome()
 
-    async def load_more(self) -> None:
+    async def load_more(self) -> int | None:
         if not self._next_path:
-            return
+            return None
         raw = await self.client.get_page(self._next_path)
         model = _MODELS[self.section]
-        self._add_items([model.model_validate(x) for x in raw.get("items", [])])
+        items = [model.model_validate(x) for x in raw.get("items", [])]
+        self._add_items(items)
         self._next_path = raw.get("nextPagePath")
         self._render_chrome()
+        return len(items)
 
     def _add_items(self, items) -> None:
         cur = self.currency

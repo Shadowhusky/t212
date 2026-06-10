@@ -327,7 +327,14 @@ class T212App(App):
         if self.scheduler is None:
             return
         self.scheduler.refresh_now()
-        self.run_worker(self.do_refresh())
+        self.notify("Refreshing…", timeout=1.5)
+        self.query_one(SummaryHeader).set_status("⟳ refreshing")
+
+        async def _manual_refresh() -> None:
+            await self.do_refresh()
+            self.notify("Refreshed", severity="information", timeout=2)
+
+        self.run_worker(_manual_refresh())
 
     def action_help(self) -> None:
         from t212.screens.help import HelpScreen
@@ -382,11 +389,22 @@ class T212App(App):
 
     def action_history_more(self) -> None:
         if self.active_tab != "history":
+            self.notify("Load more works on the History tab (4)", severity="warning", timeout=2)
             return
-        self.run_worker(self.query_one("#history").load_more())
+        hist = self.query_one("#history")
+
+        async def _more() -> None:
+            n = await hist.load_more()
+            if n:
+                self.notify(f"Loaded {n} more", timeout=2)
+            else:
+                self.notify("No more pages", timeout=2)
+
+        self.run_worker(_more())
 
     def action_sort(self) -> None:
         if self.active_tab != "positions":
+            self.notify("Sort works on the Positions tab (2)", severity="warning", timeout=2)
             return
         positions_widget = self.query_one("#positions")
         positions_widget.cycle_sort()
@@ -395,6 +413,7 @@ class T212App(App):
             positions_widget.update_data(
                 positions=self._positions, resolver=self.resolver, currency=self.currency,
                 total_value=total_value, privacy=self.privacy)
+        self.notify(f"Sorted by {positions_widget.sort_label}", timeout=1.5)
 
 
 def run_app(*, environment, mock, fixtures, refresh, api_key):

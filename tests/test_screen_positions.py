@@ -16,6 +16,29 @@ async def test_positions_table_populates_and_sorts():
         cells = [table.get_row_at(r)[0] for r in range(table.row_count)]
         assert any("AAPL" in str(c) for c in cells)
 
+async def test_positions_chrome_shows_sort_key():
+    app = T212App(client=MockT212Client(FIX), environment="demo", currency="GBP")
+    async with app.run_test() as pilot:
+        await app.do_refresh()
+        await pilot.press("2")
+        await pilot.pause()
+        chrome = app.query_one("#positions-chrome").visual.plain
+        assert "3 holdings" in chrome and "sorted by P&L %" in chrome
+        await pilot.press("s")
+        await pilot.pause()
+        chrome = app.query_one("#positions-chrome").visual.plain
+        assert "sorted by value" in chrome
+        msgs = [n.message for n in app._notifications]
+        assert "Sorted by value" in msgs
+
+async def test_sort_warns_on_other_tabs():
+    app = T212App(client=MockT212Client(FIX), environment="demo", currency="GBP")
+    async with app.run_test() as pilot:
+        await pilot.press("s")
+        await pilot.pause()
+        msgs = [n.message for n in app._notifications]
+        assert any("Positions tab" in m for m in msgs)
+
 async def test_positions_fx_column_and_pie_marker():
     app = T212App(client=MockT212Client(FIX), environment="demo", currency="GBP")
     async with app.run_test(size=(120, 40)) as pilot:

@@ -1,8 +1,11 @@
 from __future__ import annotations
 from textual.app import ComposeResult
+from textual.content import Content
 from textual.widgets import DataTable, Static
 from t212 import formatting as f
 from t212.widgets.render import pnl_cell, columns_for_width, POSITION_COLUMNS_FULL, POSITION_COLUMNS_COMPACT
+
+SORT_LABELS = {"pnl_pct": "P&L %", "value": "value", "pnl": "P&L £"}
 
 
 class Positions(Static):
@@ -12,12 +15,20 @@ class Positions(Static):
         self._reverse = True
 
     def compose(self) -> ComposeResult:
+        yield Static("", id="positions-chrome")
         table = DataTable(id="positions-table", cursor_type="row", zebra_stripes=False)
         table.add_columns(*POSITION_COLUMNS_FULL)
         yield table
 
+    @property
+    def sort_label(self) -> str:
+        return SORT_LABELS[self._sort_key]
+
     def update_data(self, *, positions, resolver, currency: str, total_value: float,
                     privacy: bool) -> None:
+        self.query_one("#positions-chrome", Static).update(Content.from_markup(
+            f"[dim]POSITIONS · {len(positions)} holdings · "
+            f"sorted by {self.sort_label} ↓[/dim]"))
         table = self.query_one("#positions-table", DataTable)
         width = self.app.size.width or 120
         cols = columns_for_width(POSITION_COLUMNS_FULL, POSITION_COLUMNS_COMPACT, width)
