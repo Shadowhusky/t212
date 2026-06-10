@@ -45,8 +45,9 @@ def save_key(path: pathlib.Path, environment: str, api_key: str) -> None:
 
 def resolve_settings(*, environment: str, api_key: str | None = None,
                      refresh: int | None = None,
-                     config_path: pathlib.Path = DEFAULT_CONFIG_PATH) -> Settings:
-    key = api_key or os.environ.get(ENV_VAR) or _read_key(pathlib.Path(config_path), environment)
+                     config_path: pathlib.Path | None = None) -> Settings:
+    path = pathlib.Path(config_path) if config_path is not None else DEFAULT_CONFIG_PATH
+    key = api_key or os.environ.get(ENV_VAR) or _read_key(path, environment)
     if not key:
         raise MissingKeyError(
             f"No API key. Set {ENV_VAR}, pass --api-key, or run `t212 config set-key`.")

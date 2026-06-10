@@ -39,7 +39,14 @@ def main(ctx, environment, mock, fixtures, once, refresh, api_key):
     if ctx.invoked_subcommand is not None:
         return
     if once:
-        client = _make_client(mock, fixtures, environment, api_key)
+        from t212.config import MissingKeyError
+        try:
+            client = _make_client(mock, fixtures, environment, api_key)
+        except MissingKeyError:
+            click.echo("No Trading 212 API key configured.")
+            click.echo("Get one in the Trading 212 app: Settings → API (Beta) → Generate key.")
+            click.echo("Then run `t212 config set-key`, or just `t212` for guided setup.")
+            raise SystemExit(1)
         click.echo(asyncio.run(_run_once(client)))
         return
     from t212.app import run_app

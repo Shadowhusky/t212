@@ -35,7 +35,7 @@ class T212App(App):
     active_tab: reactive[str] = reactive("dashboard")
     privacy: reactive[bool] = reactive(False)
 
-    def __init__(self, *, client, environment: str, currency: str,
+    def __init__(self, *, client=None, environment: str, currency: str,
                  store=None, resolver=None, scheduler=None, refresh_seconds: float = 10.0):
         super().__init__()
         from t212.scheduler import RefreshScheduler
@@ -44,8 +44,13 @@ class T212App(App):
         self.environment = environment
         self.currency = currency
         self.store = store or Store(":memory:", throttle_seconds=0)
+        self._store_is_default = store is None
+        self._persist = False
         self.resolver = resolver
-        self.scheduler = scheduler or RefreshScheduler(client)
+        self.scheduler = scheduler or (RefreshScheduler(client) if client is not None else None)
+        self._polling = False
+        self._pending_client = None
+        self._reauth_prompted = False
         self._theme_idx = 0
         self._positions = []
         self._free = 0.0
@@ -64,8 +69,61 @@ class T212App(App):
         for th in THEMES.values():
             self.register_theme(th)
         self.theme = "t212-dark"
-        self.set_interval(self._refresh_seconds(), self.do_refresh)
+        if self.client is None:
+            from t212.screens.setup import SetupScreen
+            self.push_screen(SetupScreen(validator=self._validate_key, required=True),
+                             callback=self._setup_done)
+        else:
+            self._start_polling()
+
+    def _start_polling(self) -> None:
+        if not self._polling:
+            self._polling = True
+            self.set_interval(self._refresh_seconds(), self.do_refresh)
         self.run_worker(self.do_refresh())
+
+    async def _validate_key(self, api_key: str, environment: str):
+        from t212.api.http import HttpT212Client
+        from t212.api.limits import LIVE_URL, DEMO_URL, RATE_LIMITS
+        from t212.api.ratelimit import RateLimitGovernor
+        base = LIVE_URL if environment == "live" else DEMO_URL
+        client = HttpT212Client(api_key=api_key, base_url=base,
+                                governor=RateLimitGovernor(RATE_LIMITS))
+        try:
+            summary = await client.summary()
+        except Exception:
+            await client.aclose()
+            raise
+        self._pending_client = client
+        return summary
+
+    def _setup_done(self, result) -> None:
+        if result is None:
+            return
+        from t212.scheduler import RefreshScheduler
+        if result.is_mock:
+            import pathlib
+            from t212.api.mock import MockT212Client
+            self.client = MockT212Client(
+                pathlib.Path(__file__).parent.parent.parent / "tests" / "fixtures")
+            self.currency = "GBP"
+        else:
+            from t212.store import Store, default_db_path
+            self.client = self._pending_client or self.client
+            self._pending_client = None
+            self.environment = result.environment
+            self.currency = result.summary.currency
+            self.store = Store(default_db_path(result.environment, result.summary.id))
+            self._store_is_default = False
+            self._reauth_prompted = False
+        self.scheduler = RefreshScheduler(self.client)
+        header = self.query_one(SummaryHeader)
+        header.environment = self.environment
+        header.currency = self.currency
+        history = self.query_one("#history")
+        history.client = self.client
+        history.currency = self.currency
+        self._start_polling()
 
     def _refresh_seconds(self) -> float:
         return self._refresh
@@ -91,6 +149,20 @@ class T212App(App):
         summary = data.get("summary")
         if summary is not None:
             self.currency = summary.currency
+        if summary is not None and self._persist and self._store_is_default:
+            from t212.store import Store, default_db_path
+            self.store = Store(default_db_path(self.environment, summary.id))
+            self._store_is_default = False
+        from t212.api.base import AuthError
+        if isinstance(self.scheduler.last_error, AuthError) and not self._reauth_prompted:
+            from t212.screens.setup import SetupScreen
+            if not isinstance(self.screen, SetupScreen):
+                self._reauth_prompted = True
+                self.push_screen(
+                    SetupScreen(validator=self._validate_key, required=True,
+                                status="[$error]saved key was rejected — "
+                                       "re-enter your credentials[/$error]"),
+                    callback=self._setup_done)
         if self.resolver is None:
             from t212.resolve import Resolver
             try:
@@ -214,7 +286,8 @@ class T212App(App):
         switcher = self.query_one("#body", ContentSwitcher)
         switcher.current = tab
         self.query_one(TabBar).set_active(tab)
-        self.scheduler.set_active(tab)
+        if self.scheduler is not None:
+            self.scheduler.set_active(tab)
         if tab == "history":
             hist = self.query_one("#history")
             self.run_worker(hist.load_section(hist.section))
@@ -250,6 +323,8 @@ class T212App(App):
         self.theme = names[self._theme_idx]
 
     def action_refresh_now(self) -> None:
+        if self.scheduler is None:
+            return
         self.scheduler.refresh_now()
         self.run_worker(self.do_refresh())
 
@@ -324,17 +399,21 @@ class T212App(App):
 def run_app(*, environment, mock, fixtures, refresh, api_key):
     import pathlib
     from t212.api.limits import RATE_LIMITS
+    rs = float(refresh) if refresh else 10.0
     if mock:
         from t212.api.mock import MockT212Client
         client = MockT212Client(fixtures or (pathlib.Path(__file__).parent.parent.parent / "tests" / "fixtures"))
-        currency = "GBP"
-    else:
-        from t212.api.http import HttpT212Client
-        from t212.api.ratelimit import RateLimitGovernor
-        from t212.config import resolve_settings
+        T212App(client=client, environment=environment, currency="GBP", refresh_seconds=rs).run()
+        return
+    from t212.api.http import HttpT212Client
+    from t212.api.ratelimit import RateLimitGovernor
+    from t212.config import MissingKeyError, resolve_settings
+    try:
         settings = resolve_settings(environment=environment, api_key=api_key, refresh=refresh)
-        client = HttpT212Client(api_key=settings.api_key, base_url=settings.base_url,
-                                governor=RateLimitGovernor(RATE_LIMITS))
-        currency = "GBP"
-    rs = float(refresh) if refresh else 10.0
-    T212App(client=client, environment=environment, currency=currency, refresh_seconds=rs).run()
+    except MissingKeyError:
+        T212App(client=None, environment=environment, currency="", refresh_seconds=rs).run()
+        return
+    client = HttpT212Client(api_key=settings.api_key, base_url=settings.base_url,
+                            governor=RateLimitGovernor(RATE_LIMITS))
+    T212App(client=client, environment=environment, currency="GBP",
+            refresh_seconds=rs).run()

@@ -16,6 +16,17 @@ def test_help_lists_flags():
     assert "--demo" in result.output and "--once" in result.output and "--mock" in result.output
 
 
+def test_once_without_key_prints_friendly_message(tmp_path, monkeypatch):
+    import t212.config as config
+    monkeypatch.delenv("TRADING212_API_KEY", raising=False)
+    monkeypatch.setattr(config, "DEFAULT_CONFIG_PATH", tmp_path / "nope.toml")
+    result = CliRunner().invoke(main, ["--once"])
+    assert result.exit_code != 0
+    assert "No Trading 212 API key configured" in result.output
+    assert "guided setup" in result.output
+    assert "Traceback" not in result.output
+
+
 def test_config_set_key(tmp_path, monkeypatch):
     import t212.cli as cli
     import t212.config as config
