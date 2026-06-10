@@ -12,7 +12,13 @@ async def test_history_orders_and_section_switch():
         hist = app.query_one("#history")
         await hist.load_section("orders")
         await pilot.pause()
-        assert app.query_one("#history-table", DataTable).row_count == 2
+        table = app.query_one("#history-table", DataTable)
+        assert table.row_count == 2
+        row = [str(c) for c in table.get_row_at(0)]
+        assert "AAPL" in row[1] and "BUY" in row[2]
         await hist.load_section("dividends")
         await pilot.pause()
-        assert app.query_one("#history-table", DataTable).row_count == 1
+        table = app.query_one("#history-table", DataTable)
+        assert table.row_count == 3
+        last = [str(c) for c in table.get_row_at(2)]
+        assert "Cash interest" in last[1]

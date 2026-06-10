@@ -1,5 +1,5 @@
 [
-  { "ticker": "AAPL_US_EQ", "type": "STOCK", "isin": "US0378331005", "currencyCode": "USD", "name": "Apple Inc.", "shortName": "AAPL", "workingScheduleId": 1 },
-  { "ticker": "TSLA_US_EQ", "type": "STOCK", "isin": "US88160R1014", "currencyCode": "USD", "name": "Tesla Inc.", "shortName": "TSLA", "workingScheduleId": 1 },
-  { "ticker": "VUSA_GB_EQ", "type": "ETF", "isin": "IE00B3XXRP09", "currencyCode": "GBP", "name": "Vanguard S&P 500 ETF", "shortName": "VUSA", "workingScheduleId": 2 }
+  { "addedOn": "2018-07-02T00:00:00Z", "currencyCode": "USD", "extendedHours": true, "isin": "US0378331005", "maxOpenQuantity": 25000.0, "name": "Apple Inc.", "shortName": "AAPL", "ticker": "AAPL_US_EQ", "type": "STOCK", "workingScheduleId": 1 },
+  { "addedOn": "2018-07-02T00:00:00Z", "currencyCode": "USD", "extendedHours": true, "isin": "US88160R1014", "maxOpenQuantity": 25000.0, "name": "Tesla Inc.", "shortName": "TSLA", "ticker": "TSLA_US_EQ", "type": "STOCK", "workingScheduleId": 1 },
+  { "addedOn": "2019-03-15T00:00:00Z", "currencyCode": "GBP", "extendedHours": false, "isin": "IE00B3XXRP09", "maxOpenQuantity": 50000.0, "name": "Vanguard S&P 500 ETF", "shortName": "VUSA", "ticker": "VUSA_GB_EQ", "type": "ETF", "workingScheduleId": 2 }
 ]

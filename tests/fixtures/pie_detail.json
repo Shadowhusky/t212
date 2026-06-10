@@ -1,7 +1,32 @@
-{ "settings": { "id": 42, "name": "Growth Pie", "goal": 10500.0, "icon": "Rocket" },
+{
+  "settings": {
+    "id": 42,
+    "name": "Growth Pie",
+    "goal": 10500.0,
+    "icon": "Rocket",
+    "creationDate": "2025-09-01T08:00:00Z",
+    "dividendCashAction": "REINVEST",
+    "endDate": null,
+    "initialInvestment": 5000.0,
+    "instrumentShares": null,
+    "publicUrl": null
+  },
   "instruments": [
-    { "ticker": "AAPL_US_EQ", "currentShare": 0.241, "expectedShare": 0.25, "ownedQuantity": 6.4,
-      "result": { "priceAvgInvestedValue": 1975.0, "priceAvgValue": 2117.1, "priceAvgResult": 142.10, "priceAvgResultCoef": 0.072 } },
-    { "ticker": "VUSA_GB_EQ", "currentShare": 0.312, "expectedShare": 0.30, "ownedQuantity": 12.0,
-      "result": { "priceAvgInvestedValue": 2140.0, "priceAvgValue": 2341.3, "priceAvgResult": 201.30, "priceAvgResultCoef": 0.094 } }
-  ] }
+    {
+      "ticker": "AAPL_US_EQ",
+      "currentShare": 0.241,
+      "expectedShare": 0.25,
+      "ownedQuantity": 6.4,
+      "issues": [],
+      "result": { "priceAvgInvestedValue": 1975.0, "priceAvgValue": 2117.1, "priceAvgResult": 142.10, "priceAvgResultCoef": 0.072 }
+    },
+    {
+      "ticker": "VUSA_GB_EQ",
+      "currentShare": 0.312,
+      "expectedShare": 0.30,
+      "ownedQuantity": 12.0,
+      "issues": [ { "name": "APPROACHING_MAX_POSITION_SIZE", "severity": "INFORMATIVE" } ],
+      "result": { "priceAvgInvestedValue": 2140.0, "priceAvgValue": 2341.3, "priceAvgResult": 201.30, "priceAvgResultCoef": 0.094 }
+    }
+  ]
+}

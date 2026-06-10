@@ -1,7 +1,7 @@
 from t212.api.limits import RATE_LIMITS, LIVE_URL, DEMO_URL
 
 def test_limits_cover_all_endpoints():
-    for key in ("account_info", "cash", "portfolio", "pies", "orders",
+    for key in ("summary", "positions", "orders", "pies", "pie",
                 "history_orders", "dividends", "transactions", "instruments", "exchanges"):
         assert key in RATE_LIMITS
         cap, per = RATE_LIMITS[key]

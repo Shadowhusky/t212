@@ -1,5 +1,9 @@
-{ "items": [
-    { "type": "DEPOSIT", "amount": 1000.00, "reference": "abc", "dateTime": "2026-01-02T08:00:00.000+00:00" },
-    { "type": "WITHDRAW", "amount": -200.00, "reference": "def", "dateTime": "2026-03-10T08:00:00.000+00:00" }
+{
+  "items": [
+    { "amount": 1000.00, "currency": "GBP", "dateTime": "2026-01-02T08:00:00Z", "reference": "tx-0001", "type": "DEPOSIT" },
+    { "amount": 500.00, "currency": "GBP", "dateTime": "2026-02-14T08:00:00Z", "reference": "tx-0002", "type": "DEPOSIT" },
+    { "amount": -200.00, "currency": "GBP", "dateTime": "2026-03-10T08:00:00Z", "reference": "tx-0003", "type": "WITHDRAW" },
+    { "amount": -1.50, "currency": "GBP", "dateTime": "2026-03-31T08:00:00Z", "reference": "tx-0004", "type": "FEE" }
   ],
-  "nextPagePath": null }
+  "nextPagePath": null
+}

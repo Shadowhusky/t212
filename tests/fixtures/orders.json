@@ -1,0 +1,42 @@
+[
+  {
+    "createdAt": "2026-06-08T09:15:00Z",
+    "currency": "GBP",
+    "extendedHours": false,
+    "filledQuantity": 0.0,
+    "filledValue": 0.0,
+    "id": 7001,
+    "initiatedFrom": "WEB",
+    "instrument": { "currency": "USD", "isin": "US0378331005", "name": "Apple Inc.", "ticker": "AAPL_US_EQ" },
+    "limitPrice": 180.00,
+    "quantity": 2.0,
+    "side": "BUY",
+    "status": "NEW",
+    "stopPrice": null,
+    "strategy": "QUANTITY",
+    "ticker": "AAPL_US_EQ",
+    "timeInForce": "GOOD_TILL_CANCEL",
+    "type": "LIMIT",
+    "value": 0.0
+  },
+  {
+    "createdAt": "2026-06-09T13:45:00Z",
+    "currency": "GBP",
+    "extendedHours": false,
+    "filledQuantity": 0.0,
+    "filledValue": 0.0,
+    "id": 7002,
+    "initiatedFrom": "IOS",
+    "instrument": { "currency": "USD", "isin": "US88160R1014", "name": "Tesla Inc.", "ticker": "TSLA_US_EQ" },
+    "limitPrice": null,
+    "quantity": -4.0,
+    "side": "SELL",
+    "status": "NEW",
+    "stopPrice": 220.00,
+    "strategy": "QUANTITY",
+    "ticker": "TSLA_US_EQ",
+    "timeInForce": "DAY",
+    "type": "STOP",
+    "value": 0.0
+  }
+]

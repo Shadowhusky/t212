@@ -1,4 +1,44 @@
-{ "items": [
-    { "ticker": "AAPL_US_EQ", "quantity": 12.0, "amount": 4.20, "grossAmountPerShare": 0.35, "paidOn": "2026-05-15T00:00:00.000+00:00", "type": "ORDINARY" }
+{
+  "items": [
+    {
+      "amount": 4.20,
+      "amountInEuro": 4.95,
+      "currency": "GBP",
+      "grossAmountPerShare": 0.35,
+      "instrument": { "currency": "USD", "isin": "US0378331005", "name": "Apple Inc.", "ticker": "AAPL_US_EQ" },
+      "paidOn": "2026-05-15T00:00:00Z",
+      "quantity": 12.0,
+      "reference": "div-0001",
+      "ticker": "AAPL_US_EQ",
+      "tickerCurrency": "USD",
+      "type": "ORDINARY"
+    },
+    {
+      "amount": 12.10,
+      "amountInEuro": 14.20,
+      "currency": "GBP",
+      "grossAmountPerShare": 0.4033,
+      "instrument": { "currency": "GBP", "isin": "IE00B3XXRP09", "name": "Vanguard S&P 500 ETF", "ticker": "VUSA_GB_EQ" },
+      "paidOn": "2026-04-02T00:00:00Z",
+      "quantity": 30.0,
+      "reference": "div-0002",
+      "ticker": "VUSA_GB_EQ",
+      "tickerCurrency": "GBP",
+      "type": "DIVIDEND"
+    },
+    {
+      "amount": 1.95,
+      "amountInEuro": 2.29,
+      "currency": "GBP",
+      "grossAmountPerShare": null,
+      "instrument": null,
+      "paidOn": "2026-05-01T00:00:00Z",
+      "quantity": null,
+      "reference": "int-0001",
+      "ticker": null,
+      "tickerCurrency": null,
+      "type": "INTEREST"
+    }
   ],
-  "nextPagePath": null }
+  "nextPagePath": null
+}

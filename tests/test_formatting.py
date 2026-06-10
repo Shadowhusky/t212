@@ -30,3 +30,8 @@ def test_signed_money():
 
 def test_pnl_class():
     assert f.pnl_class(1) == "gain" and f.pnl_class(-1) == "loss" and f.pnl_class(0) == "flat"
+
+def test_display_ticker():
+    assert f.display_ticker("AAPL_US_EQ") == "AAPL"
+    assert f.display_ticker("VUSA_GB_EQ") == "VUSA"
+    assert f.display_ticker("") == ""

@@ -1,5 +1,61 @@
-{ "items": [
-    { "id": 9001, "ticker": "AAPL_US_EQ", "type": "MARKET", "status": "FILLED", "filledQuantity": 2.0, "fillPrice": 187.10, "fillCost": 374.20, "dateCreated": "2026-06-04T14:11:00.000+00:00" },
-    { "id": 9000, "ticker": "TSLA_US_EQ", "type": "LIMIT", "status": "FILLED", "filledQuantity": 3.0, "fillPrice": 240.00, "fillCost": 720.00, "dateCreated": "2026-06-02T09:30:00.000+00:00" }
+{
+  "items": [
+    {
+      "order": {
+        "id": 9001,
+        "side": "BUY",
+        "type": "MARKET",
+        "status": "FILLED",
+        "ticker": "AAPL_US_EQ",
+        "createdAt": "2026-06-04T14:11:00Z",
+        "filledQuantity": 2.0,
+        "filledValue": 374.20,
+        "instrument": { "currency": "USD", "isin": "US0378331005", "name": "Apple Inc.", "ticker": "AAPL_US_EQ" }
+      },
+      "fill": {
+        "filledAt": "2026-06-04T14:11:02Z",
+        "id": 5001,
+        "price": 187.10,
+        "quantity": 2.0,
+        "tradingMethod": "TOTV",
+        "type": "TRADE",
+        "walletImpact": {
+          "currency": "GBP",
+          "fxRate": 1.27,
+          "netValue": 374.20,
+          "realisedProfitLoss": 0.0,
+          "taxes": [ { "name": "CURRENCY_CONVERSION_FEE", "quantity": 0.56, "currency": "GBP", "chargedAt": "2026-06-04T14:11:02Z" } ]
+        }
+      }
+    },
+    {
+      "order": {
+        "id": 9000,
+        "side": "SELL",
+        "type": "LIMIT",
+        "status": "FILLED",
+        "ticker": "TSLA_US_EQ",
+        "createdAt": "2026-06-02T09:30:00Z",
+        "filledQuantity": 3.0,
+        "filledValue": 720.00,
+        "instrument": { "currency": "USD", "isin": "US88160R1014", "name": "Tesla Inc.", "ticker": "TSLA_US_EQ" }
+      },
+      "fill": {
+        "filledAt": "2026-06-02T09:31:10Z",
+        "id": 5000,
+        "price": 240.00,
+        "quantity": 3.0,
+        "tradingMethod": "TOTV",
+        "type": "TRADE",
+        "walletImpact": {
+          "currency": "GBP",
+          "fxRate": 1.26,
+          "netValue": 720.00,
+          "realisedProfitLoss": 18.40,
+          "taxes": [ { "name": "STAMP_DUTY", "quantity": 1.20, "currency": "GBP", "chargedAt": "2026-06-02T09:31:10Z" } ]
+        }
+      }
+    }
   ],
-  "nextPagePath": "/api/v0/equity/history/orders?cursor=8999&limit=20" }
+  "nextPagePath": "/api/v0/equity/history/orders?limit=50&cursor=1760346100000"
+}

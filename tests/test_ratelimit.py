@@ -8,16 +8,16 @@ class FakeClock:
 
 async def test_first_acquire_is_immediate():
     clk = FakeClock()
-    g = RateLimitGovernor({"portfolio": (1, 5.0)}, clock=clk, sleep=clk.sleep, rng=lambda: 0.0)
-    await g.acquire("portfolio")
+    g = RateLimitGovernor({"positions": (1, 1.0)}, clock=clk, sleep=clk.sleep, rng=lambda: 0.0)
+    await g.acquire("positions")
     assert clk.t == 0.0
 
 async def test_second_acquire_waits_one_interval():
     clk = FakeClock()
-    g = RateLimitGovernor({"portfolio": (1, 5.0)}, clock=clk, sleep=clk.sleep, rng=lambda: 0.0)
-    await g.acquire("portfolio")
-    await g.acquire("portfolio")
-    assert clk.t == pytest.approx(5.0)
+    g = RateLimitGovernor({"positions": (1, 1.0)}, clock=clk, sleep=clk.sleep, rng=lambda: 0.0)
+    await g.acquire("positions")
+    await g.acquire("positions")
+    assert clk.t == pytest.approx(1.0)
 
 async def test_burst_capacity():
     clk = FakeClock()
@@ -30,8 +30,8 @@ async def test_burst_capacity():
 
 async def test_server_reset_is_honoured():
     clk = FakeClock()
-    g = RateLimitGovernor({"cash": (1, 30.0)}, clock=clk, sleep=clk.sleep, rng=lambda: 0.0)
-    await g.acquire("cash")
-    g.note_server_reset("cash", 12.0)
-    await g.acquire("cash")
+    g = RateLimitGovernor({"summary": (1, 30.0)}, clock=clk, sleep=clk.sleep, rng=lambda: 0.0)
+    await g.acquire("summary")
+    g.note_server_reset("summary", 12.0)
+    await g.acquire("summary")
     assert clk.t == pytest.approx(12.0)

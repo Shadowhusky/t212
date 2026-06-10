@@ -1,0 +1,32 @@
+[
+  {
+    "averagePricePaid": 176.60,
+    "createdAt": "2025-11-04T10:00:00Z",
+    "currentPrice": 187.40,
+    "instrument": { "currency": "USD", "isin": "US0378331005", "name": "Apple Inc.", "ticker": "AAPL_US_EQ" },
+    "quantity": 12.0,
+    "quantityAvailableForTrading": 12.0,
+    "quantityInPies": 0.0,
+    "walletImpact": { "currency": "GBP", "currentValue": 2248.80, "fxImpact": -2.10, "totalCost": 2119.20, "unrealizedProfitLoss": 129.60 }
+  },
+  {
+    "averagePricePaid": 237.40,
+    "createdAt": "2025-11-04T10:00:00Z",
+    "currentPrice": 233.10,
+    "instrument": { "currency": "USD", "isin": "US88160R1014", "name": "Tesla Inc.", "ticker": "TSLA_US_EQ" },
+    "quantity": 8.0,
+    "quantityAvailableForTrading": 5.7,
+    "quantityInPies": 2.3,
+    "walletImpact": { "currency": "GBP", "currentValue": 1864.80, "fxImpact": -2.10, "totalCost": 1899.20, "unrealizedProfitLoss": -34.40 }
+  },
+  {
+    "averagePricePaid": 77.90,
+    "createdAt": "2025-10-01T10:00:00Z",
+    "currentPrice": 78.20,
+    "instrument": { "currency": "GBP", "isin": "IE00B3XXRP09", "name": "Vanguard S&P 500 ETF", "ticker": "VUSA_GB_EQ" },
+    "quantity": 30.0,
+    "quantityAvailableForTrading": 30.0,
+    "quantityInPies": 0.0,
+    "walletImpact": { "currency": "GBP", "currentValue": 2346.00, "fxImpact": 0.0, "totalCost": 2337.00, "unrealizedProfitLoss": 9.00 }
+  }
+]

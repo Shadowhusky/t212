@@ -13,7 +13,7 @@ async def test_pies_list_and_open_detail():
         await pilot.press("3")
         await pilot.pause()
         table = app.query_one("#pies-table", DataTable)
-        assert table.row_count == 1
+        assert table.row_count == 2
         table.focus()
         table.move_cursor(row=0)
         await pilot.press("enter")
