@@ -1,8 +1,8 @@
-import json, pathlib
+import json
 from t212.models import Instrument, Exchange
 from t212.resolve import Resolver
 
-FIX = pathlib.Path(__file__).parent / "fixtures"
+from t212.api.mock import SAMPLE_DIR as FIX
 
 def build():
     inst = [Instrument.model_validate(x) for x in json.loads((FIX / "instruments.json").read_text())]

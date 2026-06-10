@@ -1,8 +1,7 @@
-import pathlib
 from click.testing import CliRunner
 from t212.cli import main
 
-FIX = pathlib.Path(__file__).parent / "fixtures"
+from t212.api.mock import SAMPLE_DIR as FIX
 
 def test_once_mock_prints_summary():
     runner = CliRunner()

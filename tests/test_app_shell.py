@@ -1,10 +1,9 @@
-import pathlib
 from t212.app import T212App
 from t212.screens.help import HelpScreen
 from t212.widgets.summary_header import SummaryHeader
 from t212.widgets.tabbar import TabBar
 
-FIX = pathlib.Path(__file__).parent / "fixtures"
+from t212.api.mock import SAMPLE_DIR as FIX
 
 def make_app():
     from t212.api.mock import MockT212Client

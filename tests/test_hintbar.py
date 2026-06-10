@@ -1,9 +1,8 @@
-import pathlib
 from t212.app import T212App
 from t212.api.mock import MockT212Client
 from t212.widgets.hintbar import HintBar
 
-FIX = pathlib.Path(__file__).parent / "fixtures"
+from t212.api.mock import SAMPLE_DIR as FIX
 
 def make_app():
     return T212App(client=MockT212Client(FIX), environment="demo", currency="GBP")

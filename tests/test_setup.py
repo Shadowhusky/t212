@@ -1,4 +1,3 @@
-import pathlib
 from textual.widgets import Input
 from t212.api.base import AuthError
 from t212.api.mock import MockT212Client
@@ -8,7 +7,7 @@ from t212.screens.setup import SetupScreen
 import t212.config as config
 import t212.store
 
-FIX = pathlib.Path(__file__).parent / "fixtures"
+from t212.api.mock import SAMPLE_DIR as FIX
 
 
 def make_unconfigured_app():

@@ -1,8 +1,8 @@
-import json, pathlib
+import json
 from t212.models import AccountSummary, Position
 from t212.store import Store
 
-FIX = pathlib.Path(__file__).parent / "fixtures"
+from t212.api.mock import SAMPLE_DIR as FIX
 
 class FakeTime:
     def __init__(self, t=1_700_000_000): self.t = t

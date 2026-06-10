@@ -1,8 +1,7 @@
-import pathlib
 from t212.api.mock import MockT212Client
 from t212.summary import build_summary, render_summary_text
 
-FIX = pathlib.Path(__file__).parent / "fixtures"
+from t212.api.mock import SAMPLE_DIR as FIX
 
 async def test_build_summary():
     c = MockT212Client(FIX)

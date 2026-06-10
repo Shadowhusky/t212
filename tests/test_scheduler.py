@@ -1,9 +1,8 @@
-import pathlib
 from t212.api.base import ScopeError
 from t212.api.mock import MockT212Client
 from t212.scheduler import needs_for_tab, RefreshScheduler
 
-FIX = pathlib.Path(__file__).parent / "fixtures"
+from t212.api.mock import SAMPLE_DIR as FIX
 
 def test_needs_for_tab():
     assert "summary" in needs_for_tab("dashboard") and "positions" in needs_for_tab("dashboard")

@@ -1,11 +1,10 @@
-import pathlib
 from textual.widgets import Static
 from t212.api.base import ScopeError
 from t212.app import T212App
 from t212.api.mock import MockT212Client
 from t212.widgets.summary_header import SummaryHeader
 
-FIX = pathlib.Path(__file__).parent / "fixtures"
+from t212.api.mock import SAMPLE_DIR as FIX
 
 
 def _plain(widget) -> str:

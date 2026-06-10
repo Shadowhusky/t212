@@ -5,10 +5,12 @@ from t212.models import (AccountSummary, Position, PendingOrder, Pie, PieDetail,
                          TradableInstrument, Exchange, HistoricalOrder, Dividend, Transaction)
 from t212.pagination import Page, parse_cursor
 
+SAMPLE_DIR = pathlib.Path(__file__).parent.parent / "sample_data"
+
 
 class MockT212Client:
-    def __init__(self, fixtures_dir: str | pathlib.Path):
-        self._dir = pathlib.Path(fixtures_dir)
+    def __init__(self, fixtures_dir: str | pathlib.Path | None = None):
+        self._dir = pathlib.Path(fixtures_dir) if fixtures_dir else SAMPLE_DIR
 
     def _load(self, name: str):
         return json.loads((self._dir / f"{name}.json").read_text())

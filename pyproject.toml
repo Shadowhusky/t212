@@ -2,7 +2,17 @@
 name = "t212"
 version = "0.1.0"
 description = "Read-only Trading 212 portfolio terminal"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "shadowhusky" }]
+keywords = ["trading212", "tui", "terminal", "portfolio", "textual"]
+classifiers = [
+    "Environment :: Console",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
 requires-python = ">=3.11"
 dependencies = [
     "textual>=0.85",
@@ -11,6 +21,9 @@ dependencies = [
     "pydantic>=2.6",
     "click>=8.1",
 ]
+
+[project.urls]
+Repository = "https://github.com/Shadowhusky/t212"
 
 [project.scripts]
 t212 = "t212.cli:main"

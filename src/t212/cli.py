@@ -1,6 +1,5 @@
 from __future__ import annotations
 import asyncio
-import pathlib
 import click
 from t212.api.limits import RATE_LIMITS
 from t212.api.mock import MockT212Client
@@ -9,7 +8,7 @@ from t212.summary import build_summary, render_summary_text
 
 def _make_client(mock: bool, fixtures: str | None, environment: str, api_key: str | None):
     if mock:
-        return MockT212Client(fixtures or (pathlib.Path(__file__).parent.parent.parent / "tests" / "fixtures"))
+        return MockT212Client(fixtures)
     from t212.api.http import HttpT212Client
     from t212.api.ratelimit import RateLimitGovernor
     from t212.config import resolve_settings

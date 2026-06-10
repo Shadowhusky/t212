@@ -105,10 +105,8 @@ class T212App(App):
             return
         from t212.scheduler import RefreshScheduler
         if result.is_mock:
-            import pathlib
             from t212.api.mock import MockT212Client
-            self.client = MockT212Client(
-                pathlib.Path(__file__).parent.parent.parent / "tests" / "fixtures")
+            self.client = MockT212Client()
             self.currency = "GBP"
         else:
             from t212.store import Store, default_db_path
@@ -453,12 +451,11 @@ class T212App(App):
 
 
 def run_app(*, environment, mock, fixtures, refresh, api_key):
-    import pathlib
     from t212.api.limits import RATE_LIMITS
     rs = float(refresh) if refresh else 10.0
     if mock:
         from t212.api.mock import MockT212Client
-        client = MockT212Client(fixtures or (pathlib.Path(__file__).parent.parent.parent / "tests" / "fixtures"))
+        client = MockT212Client(fixtures)
         T212App(client=client, environment=environment, currency="GBP", refresh_seconds=rs).run()
         return
     from t212.api.http import HttpT212Client

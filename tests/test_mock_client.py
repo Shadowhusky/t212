@@ -1,7 +1,6 @@
-import pathlib
 from t212.api.mock import MockT212Client
 
-FIX = pathlib.Path(__file__).parent / "fixtures"
+from t212.api.mock import SAMPLE_DIR as FIX
 
 async def test_mock_returns_parsed_models():
     c = MockT212Client(FIX)

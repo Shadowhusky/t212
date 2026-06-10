@@ -1,8 +1,8 @@
-import json, pathlib
+import json
 from t212.models import (AccountSummary, Position, TradableInstrument, Exchange,
                          Pie, PieDetail, PendingOrder, HistoricalOrder, Dividend, Transaction)
 
-FIX = pathlib.Path(__file__).parent / "fixtures"
+from t212.api.mock import SAMPLE_DIR as FIX
 def load(name): return json.loads((FIX / f"{name}.json").read_text())
 
 def test_account_summary():
