@@ -36,7 +36,8 @@ class T212App(App):
     privacy: reactive[bool] = reactive(False)
 
     def __init__(self, *, client=None, environment: str, currency: str,
-                 store=None, resolver=None, scheduler=None, refresh_seconds: float = 10.0):
+                 store=None, resolver=None, scheduler=None, refresh_seconds: float = 10.0,
+                 persist: bool = False):
         super().__init__()
         from t212.scheduler import RefreshScheduler
         from t212.store import Store
@@ -45,7 +46,7 @@ class T212App(App):
         self.currency = currency
         self.store = store or Store(":memory:", throttle_seconds=0)
         self._store_is_default = store is None
-        self._persist = False
+        self._persist = persist
         self.resolver = resolver
         self.scheduler = scheduler or (RefreshScheduler(client) if client is not None else None)
         self._polling = False
@@ -416,4 +417,4 @@ def run_app(*, environment, mock, fixtures, refresh, api_key):
     client = HttpT212Client(api_key=settings.api_key, base_url=settings.base_url,
                             governor=RateLimitGovernor(RATE_LIMITS))
     T212App(client=client, environment=environment, currency="GBP",
-            refresh_seconds=rs).run()
+            refresh_seconds=rs, persist=True).run()

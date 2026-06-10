@@ -100,6 +100,18 @@ async def test_browse_sample_data_runs_on_mock():
         assert app._summary is not None
 
 
+async def test_persist_swaps_default_store_to_disk(tmp_path, monkeypatch):
+    monkeypatch.setattr(t212.store, "default_db_path",
+                        lambda env, acc: tmp_path / f"{env}-{acc}.sqlite")
+    app = T212App(client=MockT212Client(FIX), environment="live", currency="GBP",
+                  persist=True)
+    async with app.run_test():
+        await app.workers.wait_for_complete()
+        db_file = app.store.db.execute("PRAGMA database_list").fetchone()[2]
+        assert "live-1234567" in db_file
+        assert app.store.equity_series()
+
+
 async def test_escape_does_not_dismiss_required_setup():
     app = make_unconfigured_app()
     async with app.run_test() as pilot:
