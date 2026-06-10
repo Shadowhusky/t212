@@ -1,3 +1,4 @@
+import base64
 import httpx, pytest
 from t212.api.http import HttpT212Client
 from t212.api.ratelimit import RateLimitGovernor
@@ -39,6 +40,31 @@ async def test_401_raises_auth_error():
     c = make_client(handler)
     with pytest.raises(AuthError):
         await c.account_info()
+
+async def test_keyid_secret_uses_basic_auth():
+    seen = {}
+    def handler(req):
+        seen["auth"] = req.headers.get("Authorization")
+        return httpx.Response(200, json={"currencyCode": "GBP", "id": 1})
+    transport = httpx.MockTransport(handler)
+    http = httpx.AsyncClient(base_url="https://live.trading212.com", transport=transport)
+    # client injected so the transport is mocked; assert the constructor would build Basic auth
+    c = HttpT212Client(api_key="myid:mysecret", base_url="https://live.trading212.com",
+                       governor=RateLimitGovernor(RATE_LIMITS))
+    auth = c._client.auth
+    assert isinstance(auth, httpx.BasicAuth)
+    request = httpx.Request("GET", "https://live.trading212.com/x")
+    flow = auth.auth_flow(request)
+    signed = next(flow)
+    expected = "Basic " + base64.b64encode(b"myid:mysecret").decode()
+    assert signed.headers["Authorization"] == expected
+
+
+async def test_legacy_single_key_uses_raw_header():
+    c = HttpT212Client(api_key="LEGACYKEY", base_url="https://live.trading212.com",
+                       governor=RateLimitGovernor(RATE_LIMITS))
+    assert c._client.headers.get("Authorization") == "LEGACYKEY"
+
 
 async def test_history_orders_parses_cursor():
     def handler(req):

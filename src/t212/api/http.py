@@ -13,8 +13,15 @@ class HttpT212Client:
     def __init__(self, *, api_key: str, base_url: str, governor: RateLimitGovernor,
                  client: httpx.AsyncClient | None = None, timeout: float = 15.0):
         self._gov = governor
-        self._client = client or httpx.AsyncClient(
-            base_url=base_url, headers={"Authorization": api_key}, timeout=timeout)
+        if client is not None:
+            self._client = client
+        elif ":" in api_key:                       # current format: keyId:secret → HTTP Basic
+            key_id, secret = api_key.split(":", 1)
+            self._client = httpx.AsyncClient(
+                base_url=base_url, auth=httpx.BasicAuth(key_id, secret), timeout=timeout)
+        else:                                       # legacy single-key header
+            self._client = httpx.AsyncClient(
+                base_url=base_url, headers={"Authorization": api_key}, timeout=timeout)
 
     async def _get(self, limit_key: str, path: str, params: dict | None = None):
         await self._gov.acquire(limit_key)

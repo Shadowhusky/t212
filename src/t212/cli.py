@@ -55,7 +55,8 @@ def main(ctx, environment, mock, fixtures, once, refresh, api_key):
 @click.option("--live", "environment", flag_value="live", default=True, help="Save the live-account key (default).")
 def config_cmd(action, environment):
     """Manage saved credentials. Currently: set-key."""
-    key = click.prompt(f"Trading 212 API key ({environment})", hide_input=True)
+    key_id = click.prompt(f"Trading 212 API key ID ({environment})", hide_input=True)
+    secret = click.prompt("Trading 212 API key secret", hide_input=True)
     from t212.config import save_key, DEFAULT_CONFIG_PATH
-    save_key(DEFAULT_CONFIG_PATH, environment, key)
+    save_key(DEFAULT_CONFIG_PATH, environment, f"{key_id}:{secret}")
     click.echo(f"Saved {environment} key to {DEFAULT_CONFIG_PATH} (chmod 600).")
