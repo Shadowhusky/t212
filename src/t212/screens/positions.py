@@ -26,20 +26,23 @@ class Positions(Static):
         table.add_columns(*cols)
         rows = sorted(positions, key=self._sortfn, reverse=self._reverse)
         if not rows:
-            table.add_row("No open positions", *[""] * (len(cols) - 1))
+            table.add_row("No direct positions. Holdings inside pies live in the Pies tab (3).",
+                          *[""] * (len(cols) - 1))
             return
         for p in rows:
             pct = p.pnl_pct or 0.0
             weight = (p.market_value / total_value) if total_value else 0.0
+            qty = f"{p.quantity:g}" + (" ◔" if p.quantity_in_pies > 0 else "")
             full = {
                 "TICKER": f.display_ticker(p.ticker),
                 "NAME": p.name[:22],
-                "QTY": f"{p.quantity:g}",
+                "QTY": qty,
                 "AVG": f"{p.average_price:,.2f}",
                 "NOW": f"{p.current_price:,.2f}",
                 "VALUE": money(p.market_value, currency, blur=privacy),
                 "P&L": pnl_cell(p.ppl, currency, blur=privacy),
                 "P&L%": f.percent(pct),
+                "FX": pnl_cell(p.fx_ppl, currency, blur=privacy),
                 "WEIGHT": f"{weight * 100:.1f}%",
             }
             table.add_row(*[full[c] for c in cols], key=p.ticker)

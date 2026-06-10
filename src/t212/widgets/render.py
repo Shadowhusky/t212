@@ -49,7 +49,7 @@ def pnl_cell(value: float, currency: str, pct: float | None = None, *, blur: boo
     return Text(body, style=_PNL_COLOR[f.pnl_class(value)])
 
 
-POSITION_COLUMNS_FULL = ["TICKER", "NAME", "QTY", "AVG", "NOW", "VALUE", "P&L", "P&L%", "WEIGHT"]
+POSITION_COLUMNS_FULL = ["TICKER", "NAME", "QTY", "AVG", "NOW", "VALUE", "P&L", "P&L%", "FX", "WEIGHT"]
 POSITION_COLUMNS_COMPACT = ["TICKER", "QTY", "VALUE", "P&L%"]
 
 
