@@ -60,11 +60,18 @@ uv sync
 
 ## Get an API key
 
-In the Trading 212 app: **Settings → API (Beta)** and generate a key for the
-account you want to watch (live or demo). Read‑only scopes are enough. You'll get
-a **key ID** and a **secret** — t212 sends them as HTTP Basic auth.
+The easy way: just run `uv run t212` — on first run it walks you through
+connecting, right in the TUI: paste your key ID and secret, pick live or demo,
+and it validates against Trading 212 before saving (to
+`~/.config/t212/config.toml`, chmod 600). Or press *Browse sample data* to
+explore offline without a key.
 
-Then give them to `t212` in whichever way you prefer:
+To generate a key, in the Trading 212 app: **Settings → API (Beta)** and create
+one for the account you want to watch (live or demo). Read‑only scopes are
+enough. You'll get a **key ID** and a **secret** — t212 sends them as HTTP
+Basic auth.
+
+Prefer to set credentials yourself? Both still work:
 
 ```sh
 # environment variable — join as keyId:secret
