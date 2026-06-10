@@ -37,6 +37,10 @@ class History(Static):
         self._balance = 0.0
         self._net_deposits = 0.0
 
+    @property
+    def has_more(self) -> bool:
+        return bool(self._next_path)
+
     def compose(self) -> ComposeResult:
         yield Static("‹ Orders ›  Dividends  Transactions", id="history-tabs")
         yield Static("", id="history-stats")

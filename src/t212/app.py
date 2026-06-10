@@ -2,8 +2,9 @@ from __future__ import annotations
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.reactive import reactive
-from textual.widgets import Footer, ContentSwitcher
+from textual.widgets import ContentSwitcher
 from t212.theming import THEMES, theme_names
+from t212.widgets.hintbar import HintBar
 from t212.widgets.summary_header import SummaryHeader
 from t212.widgets.tabbar import TabBar
 
@@ -144,7 +145,7 @@ class T212App(App):
             yield Pies()
             yield History(self.client, self.currency)
             yield Search()
-        yield Footer()
+        yield HintBar()
 
     async def do_refresh(self) -> None:
         data = await self.scheduler.poll_once()
@@ -295,13 +296,30 @@ class T212App(App):
             self.scheduler.set_active(tab)
         if tab == "history":
             hist = self.query_one("#history")
-            self.run_worker(hist.load_section(hist.section))
+            self.run_worker(self._load_history_section(hist, hist.section))
         elif tab == "search":
             search = self.query_one("#search")
             search.held = {p.ticker: p.quantity for p in self._positions}
             if self.resolver is not None:
                 search.set_universe(self.resolver.all_instruments())
         self._focus_primary(tab)
+        self._update_hintbar()
+
+    async def _load_history_section(self, hist, section: str) -> None:
+        await hist.load_section(section)
+        self._update_hintbar()
+
+    def _update_hintbar(self) -> None:
+        try:
+            bar = self.query_one(HintBar)
+            has_more = self.query_one("#history").has_more
+        except Exception:
+            return
+        width = (self.size.width or 82) - 2  # HintBar horizontal padding
+        bar.set_context(self.active_tab, width, has_more=has_more)
+
+    def on_resize(self, event) -> None:
+        self._update_hintbar()
 
     _FOCUS_TARGETS = {"positions": "#positions-table", "pies": "#pies-table",
                       "history": "#history-table", "search": "#search-input"}
@@ -402,7 +420,7 @@ class T212App(App):
         from t212.screens.history import SECTIONS
         hist = self.query_one("#history")
         i = (SECTIONS.index(hist.section) + delta) % len(SECTIONS)
-        self.run_worker(hist.load_section(SECTIONS[i]))
+        self.run_worker(self._load_history_section(hist, SECTIONS[i]))
 
     def action_history_more(self) -> None:
         if self.active_tab != "history":
@@ -416,6 +434,7 @@ class T212App(App):
                 self.notify(f"Loaded {n} more", timeout=2)
             else:
                 self.notify("No more pages", timeout=2)
+            self._update_hintbar()
 
         self.run_worker(_more())
 
