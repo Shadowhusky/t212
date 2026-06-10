@@ -13,6 +13,7 @@ TABS = [("dashboard", "Dashboard"), ("positions", "Positions"),
 
 
 class T212App(App):
+    TITLE = "t212"
     CSS_PATH = "widgets/styles.tcss"
     BINDINGS = [
         Binding("1", "tab('dashboard')", "Dashboard", show=False),
