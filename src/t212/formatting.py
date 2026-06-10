@@ -48,3 +48,7 @@ def signed_money(value: float, currency: str = "GBP", *, blur: bool = False) -> 
 
 def pnl_class(value: float) -> str:
     return "gain" if value > 0 else "loss" if value < 0 else "flat"
+
+
+def display_ticker(ticker: str) -> str:
+    return ticker.split("_")[0] if ticker else ""

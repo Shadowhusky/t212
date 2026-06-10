@@ -31,7 +31,7 @@ class PositionDetail(ModalScreen):
             f"[dim]Market value[/dim]  {f.money(p.market_value, cur, blur=self.privacy)}",
             f"[dim]Open P&L[/dim]      [{tag}]{f.arrow(p.ppl)} {f.signed_money(p.ppl, cur, blur=self.privacy)} ({f.percent(p.pnl_pct or 0)})[/{tag}]",
             f"[dim]FX P&L[/dim]        {f.signed_money(p.fx_ppl or 0.0, cur, blur=self.privacy)}",
-            f"[dim]First fill[/dim]    {p.initial_fill_date.date() if p.initial_fill_date else '—'}",
+            f"[dim]First fill[/dim]    {p.created_at.date() if p.created_at else '—'}",
         ]
         if self.series:
             lines.append("")

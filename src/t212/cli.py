@@ -4,7 +4,6 @@ import pathlib
 import click
 from t212.api.limits import RATE_LIMITS
 from t212.api.mock import MockT212Client
-from t212.resolve import Resolver
 from t212.summary import build_summary, render_summary_text
 
 
@@ -21,8 +20,7 @@ def _make_client(mock: bool, fixtures: str | None, environment: str, api_key: st
 
 async def _run_once(client):
     summary = await build_summary(client)
-    resolver = Resolver(await client.instruments(), await client.exchanges())
-    text = render_summary_text(summary, resolver)
+    text = render_summary_text(summary)
     await client.aclose()
     return text
 

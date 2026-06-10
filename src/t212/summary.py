@@ -14,19 +14,23 @@ class Summary:
     invested: float
     open_pnl: float
     realised: float
+    in_pies: float
     positions: list[Position]
 
 
 async def build_summary(client: T212Client) -> Summary:
-    info = await client.account_info()
-    cash = await client.cash()
-    positions = sorted(await client.portfolio(), key=lambda p: p.market_value, reverse=True)
-    return Summary(currency=info.currency_code, total=cash.total, free=cash.free,
-                   invested=cash.invested, open_pnl=cash.ppl, realised=cash.result,
+    summary = await client.summary()
+    positions = sorted(await client.positions(), key=lambda p: p.market_value, reverse=True)
+    return Summary(currency=summary.currency, total=summary.total_value,
+                   free=summary.cash.available_to_trade,
+                   invested=summary.investments.total_cost,
+                   open_pnl=summary.investments.unrealized_pnl,
+                   realised=summary.investments.realized_pnl,
+                   in_pies=summary.cash.in_pies,
                    positions=positions)
 
 
-def render_summary_text(s: Summary, resolver: Resolver) -> str:
+def render_summary_text(s: Summary, resolver: Resolver | None = None) -> str:
     cur = s.currency
     lines = [
         f"Portfolio value   {f.money(s.total, cur)}",
@@ -34,14 +38,15 @@ def render_summary_text(s: Summary, resolver: Resolver) -> str:
         f"({f.percent(s.open_pnl / s.invested if s.invested else 0)})",
         f"Realised          {f.signed_money(s.realised, cur)}",
         f"Free / Invested   {f.money(s.free, cur)} / {f.money(s.invested, cur)}",
+        f"In pies           {f.money(s.in_pies, cur)}",
         "",
         f"{'TICKER':<10}{'NAME':<24}{'QTY':>6}{'VALUE':>14}{'P&L':>14}{'P&L%':>9}",
     ]
     for p in s.positions:
         pct = p.pnl_pct or 0.0
         lines.append(
-            f"{resolver.short_name(p.ticker):<10}"
-            f"{resolver.long_name(p.ticker)[:23]:<24}"
+            f"{f.display_ticker(p.ticker):<10}"
+            f"{p.name[:23]:<24}"
             f"{p.quantity:>6.0f}"
             f"{f.money(p.market_value, cur):>14}"
             f"{f.arrow(p.ppl)} {f.signed_money(p.ppl, cur):>11}"

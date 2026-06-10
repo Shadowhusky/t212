@@ -24,7 +24,7 @@ class Pies(Static):
             return
         for pie in pies:
             r = pie.result
-            divs = (pie.dividend_details or {}).get("gained", 0.0)
+            divs = pie.dividend_details.gained
             table.add_row(
                 f"Pie {pie.id}",
                 f.money(r.value, currency, blur=privacy),

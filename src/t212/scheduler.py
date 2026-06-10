@@ -1,11 +1,11 @@
 from __future__ import annotations
 import asyncio
-from t212.api.base import T212Client
+from t212.api.base import T212Client, ScopeError
 
-_HEADER = {"account_info", "cash", "portfolio"}
+_HEADER = {"summary", "positions"}
 _TAB_NEEDS = {
-    "dashboard": {"cash", "portfolio"},
-    "positions": {"portfolio"},
+    "dashboard": {"summary", "positions", "orders"},
+    "positions": {"summary", "positions"},
     "pies": {"pies"},
     "history": set(),
     "search": {"instruments", "exchanges"},
@@ -22,10 +22,11 @@ class RefreshScheduler:
         self._active = "dashboard"
         self._cache: dict = {}
         self.last_error: Exception | None = None
+        self.scope_errors: set[str] = set()
         self._fetchers = {
-            "account_info": client.account_info,
-            "cash": client.cash,
-            "portfolio": client.portfolio,
+            "summary": client.summary,
+            "positions": client.positions,
+            "orders": client.orders,
             "pies": client.pies,
             "instruments": client.instruments,
             "exchanges": client.exchanges,
@@ -44,6 +45,9 @@ class RefreshScheduler:
             nonlocal errored
             try:
                 self._cache[k] = await self._fetchers[k]()
+                self.scope_errors.discard(k)
+            except ScopeError:
+                self.scope_errors.add(k)
             except Exception as e:
                 self.last_error = e
                 errored = True

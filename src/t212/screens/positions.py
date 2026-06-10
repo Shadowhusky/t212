@@ -32,8 +32,8 @@ class Positions(Static):
             pct = p.pnl_pct or 0.0
             weight = (p.market_value / total_value) if total_value else 0.0
             full = {
-                "TICKER": resolver.short_name(p.ticker),
-                "NAME": resolver.long_name(p.ticker)[:22],
+                "TICKER": f.display_ticker(p.ticker),
+                "NAME": p.name[:22],
                 "QTY": f"{p.quantity:g}",
                 "AVG": f"{p.average_price:,.2f}",
                 "NOW": f"{p.current_price:,.2f}",

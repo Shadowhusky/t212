@@ -1,13 +1,12 @@
 from __future__ import annotations
 from textual.app import ComposeResult
 from textual.widgets import DataTable, Static
-from t212.resolve import Resolver
 from t212 import formatting as f
 
 SECTIONS = ["orders", "dividends", "transactions"]
 HEADERS = {
-    "orders": ["DATE", "TICKER", "TYPE", "QTY", "FILL", "VALUE", "STATUS"],
-    "dividends": ["DATE", "TICKER", "QTY", "PER SHARE", "AMOUNT", "TOTAL"],
+    "orders": ["DATE", "TICKER", "SIDE", "TYPE", "QTY", "FILL", "VALUE", "STATUS"],
+    "dividends": ["DATE", "NAME", "TYPE", "AMOUNT", "TOTAL"],
     "transactions": ["DATE", "TYPE", "AMOUNT", "BALANCE"],
 }
 
@@ -23,36 +22,37 @@ class History(Static):
         yield Static("‹ Orders ›  Dividends  Transactions", id="history-tabs")
         yield DataTable(id="history-table", cursor_type="row")
 
-    def _resolver(self) -> Resolver:
-        return getattr(self.app, "resolver", None) or Resolver([], [])
-
     async def load_section(self, section: str) -> None:
         self.section = section
-        r = self._resolver()
         cur = self.currency
         table = self.query_one("#history-table", DataTable)
         table.clear(columns=True)
         table.add_columns(*HEADERS[section])
         if section == "orders":
             page = await self.client.history_orders()
-            for o in page.items:
+            for h in page.items:
+                o = h.order
+                fill_price = h.fill.price if h.fill else None
                 table.add_row(
-                    o.date_created.strftime("%m-%d %H:%M") if o.date_created else "—",
-                    r.short_name(o.ticker), o.type or "—",
-                    f"{o.filled_quantity:g}" if o.filled_quantity else "—",
-                    f"{o.fill_price:,.2f}" if o.fill_price else "—",
-                    f.money(o.fill_cost, cur) if o.fill_cost else "—",
-                    o.status or "—")
+                    o.created_at.strftime("%m-%d %H:%M") if o and o.created_at else "—",
+                    f.display_ticker(h.ticker) or "—",
+                    (o.side if o else None) or "—",
+                    (o.type if o else None) or "—",
+                    f"{o.filled_quantity:g}" if o and o.filled_quantity else "—",
+                    f"{fill_price:,.2f}" if fill_price else "—",
+                    f.money(o.filled_value, cur) if o and o.filled_value else "—",
+                    (o.status if o else None) or "—")
         elif section == "dividends":
             page = await self.client.dividends()
             running = 0.0
             for d in page.items:
                 running += d.amount
+                name = "Cash interest" if d.is_interest else (
+                    (d.instrument.name if d.instrument else None) or d.ticker or "—")
                 table.add_row(
                     d.paid_on.strftime("%Y-%m-%d") if d.paid_on else "—",
-                    r.short_name(d.ticker),
-                    f"{d.quantity:g}" if d.quantity else "—",
-                    f.money(d.gross_per_share, cur) if d.gross_per_share else "—",
+                    name[:24],
+                    (d.type or "—")[:12],
                     f.money(d.amount, cur), f.money(running, cur))
         else:
             page = await self.client.transactions()

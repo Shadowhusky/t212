@@ -15,28 +15,29 @@ class Dashboard(Vertical):
     def compose(self) -> ComposeResult:
         yield Static("Loading…", id="dash-metrics")
 
-    def update_data(self, *, cash, positions, resolver, currency: str, today: float,
+    def update_data(self, *, summary, positions, resolver, currency: str, today: float,
                     series, privacy: bool) -> None:
         cur = currency
-        ppl_tag = PNL_TAG[f.pnl_class(cash.ppl)]
+        inv = summary.investments
+        ppl_tag = PNL_TAG[f.pnl_class(inv.unrealized_pnl)]
         lines = [
             "[dim]OPEN P&L[/dim]",
-            f"[{ppl_tag}]{f.arrow(cash.ppl)} {f.signed_money(cash.ppl, cur, blur=privacy)}  "
-            f"{f.percent(cash.ppl / cash.invested if cash.invested else 0)}[/{ppl_tag}]",
-            f"[dim]Realised   {f.signed_money(cash.result, cur, blur=privacy)}[/dim]",
-            f"[dim]Invested   {f.money(cash.invested, cur, blur=privacy)}[/dim]",
+            f"[{ppl_tag}]{f.arrow(inv.unrealized_pnl)} {f.signed_money(inv.unrealized_pnl, cur, blur=privacy)}  "
+            f"{f.percent(inv.unrealized_pnl / inv.total_cost if inv.total_cost else 0)}[/{ppl_tag}]",
+            f"[dim]Realised   {f.signed_money(inv.realized_pnl, cur, blur=privacy)}[/dim]",
+            f"[dim]Invested   {f.money(inv.total_cost, cur, blur=privacy)}[/dim]",
             f"[dim]Positions  {len(positions)}[/dim]",
             "",
             "[dim]ALLOCATION · by type[/dim]",
         ]
-        for label, frac in _alloc_by_type(positions, cash, resolver).items():
+        for label, frac in _alloc_by_type(positions, summary, resolver).items():
             lines.append(f"{label:<7}{bar(frac)}  {frac * 100:>3.0f}%")
         lines.append("")
         lines.append("[dim]TOP MOVERS[/dim]")
         for p in _top_movers(positions):
             tag = PNL_TAG[f.pnl_class(p.ppl)]
             lines.append(
-                f"{resolver.short_name(p.ticker):<8}"
+                f"{f.display_ticker(p.ticker):<8}"
                 f"[{tag}]{f.arrow(p.ppl)} {f.percent(p.pnl_pct or 0.0)}[/{tag}]")
         pts = [v for _, v in window_series(series or [], 0)]
         if len(pts) >= 2:
@@ -46,8 +47,9 @@ class Dashboard(Vertical):
         self.query_one("#dash-metrics", Static).update(Content.from_markup("\n".join(lines)))
 
 
-def _alloc_by_type(positions, cash, resolver) -> dict[str, float]:
-    total = sum(p.market_value for p in positions) + cash.free
+def _alloc_by_type(positions, summary, resolver) -> dict[str, float]:
+    free = summary.cash.available_to_trade
+    total = sum(p.market_value for p in positions) + free
     if total <= 0:
         return {}
     buckets: dict[str, float] = {}
@@ -55,7 +57,7 @@ def _alloc_by_type(positions, cash, resolver) -> dict[str, float]:
         inst = resolver.instrument(p.ticker)
         kind = (inst.type.title() + "s") if inst and inst.type else "Other"
         buckets[kind] = buckets.get(kind, 0.0) + p.market_value
-    buckets["Cash"] = cash.free
+    buckets["Cash"] = free
     return {k: v / total for k, v in buckets.items() if v > 0}
 
 

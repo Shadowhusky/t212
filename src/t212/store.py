@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS equity_snapshots (
 );
 CREATE TABLE IF NOT EXISTS position_snapshots (
   ts INTEGER, ticker TEXT, quantity REAL, current_price REAL, ppl REAL,
+  value REAL DEFAULT NULL,
   PRIMARY KEY (ts, ticker)
 );
 CREATE TABLE IF NOT EXISTS instruments_cache (
@@ -25,19 +26,26 @@ class Store:
         self._throttle = throttle_seconds
         self.db = sqlite3.connect(str(path))
         self.db.executescript(SCHEMA)
+        try:
+            self.db.execute("ALTER TABLE position_snapshots ADD COLUMN value REAL")
+        except sqlite3.OperationalError:
+            pass
         self.db.commit()
         self._last_ts = 0
 
-    def record(self, cash, positions, currency: str) -> bool:
+    def record(self, summary, positions, currency: str) -> bool:
         now = int(self._clock())
         if now - self._last_ts < self._throttle:
             return False
         self.db.execute(
             "INSERT OR REPLACE INTO equity_snapshots VALUES (?,?,?,?,?,?,?)",
-            (now, cash.total, cash.free, cash.invested, cash.ppl, cash.result, currency))
+            (now, summary.total_value, summary.cash.available_to_trade,
+             summary.investments.total_cost, summary.investments.unrealized_pnl,
+             summary.investments.realized_pnl, currency))
         self.db.executemany(
-            "INSERT OR REPLACE INTO position_snapshots VALUES (?,?,?,?,?)",
-            [(now, p.ticker, p.quantity, p.current_price, p.ppl) for p in positions])
+            "INSERT OR REPLACE INTO position_snapshots VALUES (?,?,?,?,?,?)",
+            [(now, p.ticker, p.quantity, p.current_price, p.ppl, p.market_value)
+             for p in positions])
         self.db.commit()
         self._last_ts = now
         return True
@@ -53,7 +61,7 @@ class Store:
 
     def position_series(self, ticker: str, window_seconds: int = 0) -> list[tuple[int, float]]:
         cur = self.db.execute(
-            "SELECT ts, quantity * current_price FROM position_snapshots "
+            "SELECT ts, COALESCE(value, quantity * current_price) FROM position_snapshots "
             "WHERE ticker = ? AND ts >= ? ORDER BY ts",
             (ticker, self._since(window_seconds)))
         return [(int(ts), float(v)) for ts, v in cur.fetchall()]

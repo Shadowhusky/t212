@@ -74,9 +74,9 @@ class T212App(App):
 
     async def do_refresh(self) -> None:
         data = await self.scheduler.poll_once()
-        info = data.get("account_info")
-        if info is not None:
-            self.currency = info.currency_code
+        summary = data.get("summary")
+        if summary is not None:
+            self.currency = summary.currency
         if self.resolver is None:
             from t212.resolve import Resolver
             try:
@@ -84,28 +84,28 @@ class T212App(App):
                                          await self.client.exchanges())
             except Exception:
                 self.resolver = Resolver([], [])
-        cash = data.get("cash")
-        positions = data.get("portfolio", [])
-        if cash is not None:
-            self.store.record(cash, positions, self.currency)
+        positions = data.get("positions", [])
+        if summary is not None:
+            self.store.record(summary, positions, self.currency)
         today = 0.0
-        if cash is not None:
+        if summary is not None:
             base = self.store.today_baseline()
-            today = (cash.total - base) if base is not None else 0.0
+            today = (summary.total_value - base) if base is not None else 0.0
         status = "● live" if self.scheduler.last_error is None else "◐ reconnecting"
         self.query_one(SummaryHeader).update_data(
-            total=cash.total if cash else 0.0, today=today,
-            free=cash.free if cash else 0.0, invested=cash.invested if cash else 0.0,
+            total=summary.total_value if summary else 0.0, today=today,
+            free=summary.cash.available_to_trade if summary else 0.0,
+            invested=summary.investments.total_cost if summary else 0.0,
             status=status, privacy=self.privacy)
-        if cash is not None:
+        if summary is not None:
             self.query_one("#dashboard").update_data(
-                cash=cash, positions=positions, resolver=self.resolver,
+                summary=summary, positions=positions, resolver=self.resolver,
                 currency=self.currency, today=today,
                 series=self.store.equity_series(), privacy=self.privacy)
         self._positions = positions
-        self._free = cash.free if cash else 0.0
-        if cash is not None:
-            total_value = sum(p.market_value for p in positions) + cash.free
+        self._free = summary.cash.available_to_trade if summary else 0.0
+        if summary is not None:
+            total_value = sum(p.market_value for p in positions) + summary.cash.available_to_trade
             self.query_one("#positions").update_data(
                 positions=positions, resolver=self.resolver, currency=self.currency,
                 total_value=total_value, privacy=self.privacy)
