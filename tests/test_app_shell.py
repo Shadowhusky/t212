@@ -1,5 +1,6 @@
 import pathlib
 from t212.app import T212App
+from t212.widgets.tabbar import TabBar
 
 FIX = pathlib.Path(__file__).parent / "fixtures"
 
@@ -30,3 +31,13 @@ async def test_theme_cycles():
         first = app.theme
         await pilot.press("t")
         assert app.theme != first
+
+async def test_tabbar_shows_active_tab():
+    app = make_app()
+    async with app.run_test() as pilot:
+        await pilot.press("3")
+        assert app.active_tab == "pies"
+        text = app.query_one(TabBar).visual.plain
+        assert "3 Pies" in text
+        for label in ("Dashboard", "Positions", "Pies", "History", "Search"):
+            assert label in text

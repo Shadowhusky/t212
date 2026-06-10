@@ -5,6 +5,7 @@ from textual.reactive import reactive
 from textual.widgets import Footer, ContentSwitcher
 from t212.theming import THEMES, theme_names
 from t212.widgets.summary_header import SummaryHeader
+from t212.widgets.tabbar import TabBar
 
 TABS = [("dashboard", "Dashboard"), ("positions", "Positions"),
         ("pies", "Pies"), ("history", "History"), ("search", "Search")]
@@ -13,11 +14,11 @@ TABS = [("dashboard", "Dashboard"), ("positions", "Positions"),
 class T212App(App):
     CSS_PATH = "widgets/styles.tcss"
     BINDINGS = [
-        Binding("1", "tab('dashboard')", "Dashboard"),
-        Binding("2", "tab('positions')", "Positions"),
-        Binding("3", "tab('pies')", "Pies"),
-        Binding("4", "tab('history')", "History"),
-        Binding("5", "tab('search')", "Search"),
+        Binding("1", "tab('dashboard')", "Dashboard", show=False),
+        Binding("2", "tab('positions')", "Positions", show=False),
+        Binding("3", "tab('pies')", "Pies", show=False),
+        Binding("4", "tab('history')", "History", show=False),
+        Binding("5", "tab('search')", "Search", show=False),
         Binding("z", "privacy", "Privacy"),
         Binding("t", "cycle_theme", "Theme"),
         Binding("r", "refresh_now", "Refresh"),
@@ -69,6 +70,7 @@ class T212App(App):
 
     def compose(self) -> ComposeResult:
         yield SummaryHeader(self.environment, self.currency)
+        yield TabBar(TABS)
         with ContentSwitcher(initial="dashboard", id="body"):
             from t212.screens.dashboard import Dashboard
             from t212.screens.positions import Positions
@@ -209,6 +211,7 @@ class T212App(App):
     def watch_active_tab(self, tab: str) -> None:
         switcher = self.query_one("#body", ContentSwitcher)
         switcher.current = tab
+        self.query_one(TabBar).set_active(tab)
         self.scheduler.set_active(tab)
         if tab == "history":
             hist = self.query_one("#history")
