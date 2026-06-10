@@ -1,4 +1,5 @@
 from __future__ import annotations
+from textual import events
 from textual.app import ComposeResult
 from textual.widgets import DataTable, Input, Static
 from t212.models import Instrument
@@ -27,6 +28,12 @@ class Search(Static):
 
     async def on_input_changed(self, event: Input.Changed) -> None:
         self.set_query(event.value)
+
+    def on_key(self, event: events.Key) -> None:
+        # Escape moves focus from the filter input to the results, freeing 1-5 etc.
+        if event.key == "escape" and self.query_one("#search-input", Input).has_focus:
+            self.query_one("#search-table", DataTable).focus()
+            event.stop()
 
     def set_query(self, query: str) -> None:
         q = query.strip().lower()
