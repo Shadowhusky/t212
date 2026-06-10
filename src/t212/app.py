@@ -65,6 +65,7 @@ class T212App(App):
         self._income: dict | None = None
         self._net_deposits: float | None = None
         self._history_loaded = False
+        self._initial_focus_done = False
 
     def on_mount(self) -> None:
         for th in THEMES.values():
@@ -204,6 +205,9 @@ class T212App(App):
         if summary is not None and not self._history_loaded:
             self._history_loaded = True
             self.run_worker(self.load_history_caches())
+        if not self._initial_focus_done:
+            self._initial_focus_done = True
+            self._focus_primary(self.active_tab)
 
     def _render_dashboard(self) -> None:
         if self._summary is None:
@@ -297,6 +301,19 @@ class T212App(App):
             search.held = {p.ticker: p.quantity for p in self._positions}
             if self.resolver is not None:
                 search.set_universe(self.resolver.all_instruments())
+        self._focus_primary(tab)
+
+    _FOCUS_TARGETS = {"positions": "#positions-table", "pies": "#pies-table",
+                      "history": "#history-table", "search": "#search-input"}
+
+    def _focus_primary(self, tab: str) -> None:
+        target = self._FOCUS_TARGETS.get(tab)
+        if target is None:
+            return
+        try:
+            self.query_one(target).focus()
+        except Exception:
+            pass
 
     def action_tab(self, tab: str) -> None:
         self.active_tab = tab

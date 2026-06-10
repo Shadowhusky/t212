@@ -61,6 +61,29 @@ async def test_help_modal_toggles_with_question_mark():
         await pilot.press("question_mark")
         assert not isinstance(app.screen, HelpScreen)
 
+async def test_tab_switch_focuses_primary_widget():
+    from textual.widgets import DataTable
+    app = make_app()
+    async with app.run_test() as pilot:
+        await app.do_refresh()
+        await pilot.press("2")
+        await pilot.pause()
+        table = app.query_one("#positions-table", DataTable)
+        assert app.focused is table
+        before = table.cursor_row
+        await pilot.press("j")
+        assert table.cursor_row == before + 1
+        await pilot.press("k")
+        assert table.cursor_row == before
+        await pilot.press("down")
+        assert table.cursor_row == before + 1
+        await pilot.press("4")
+        await pilot.pause()
+        assert app.focused is app.query_one("#history-table")
+        await pilot.press("5")
+        await pilot.pause()
+        assert app.focused is app.query_one("#search-input")
+
 async def test_refresh_key_gives_feedback():
     app = make_app()
     async with app.run_test() as pilot:
