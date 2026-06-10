@@ -15,7 +15,7 @@ class Search(Static):
 
     def compose(self) -> ComposeResult:
         yield Input(placeholder="Search ticker / name / ISIN…", id="search-input")
-        table = DataTable(id="search-table", cursor_type="row")
+        table = DataTable(id="search-table", cursor_type="row", zebra_stripes=False)
         table.add_columns(*COLUMNS)
         yield table
 

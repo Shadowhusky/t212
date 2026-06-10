@@ -40,7 +40,7 @@ class History(Static):
     def compose(self) -> ComposeResult:
         yield Static("‹ Orders ›  Dividends  Transactions", id="history-tabs")
         yield Static("", id="history-stats")
-        yield DataTable(id="history-table", cursor_type="row")
+        yield DataTable(id="history-table", cursor_type="row", zebra_stripes=False)
         yield Static("", id="history-more")
 
     async def load_section(self, section: str) -> None:

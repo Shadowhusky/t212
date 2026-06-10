@@ -60,7 +60,7 @@ class PieDetailScreen(ModalScreen):
                 f"reinvested {f.money(d.reinvested, cur, blur=self.privacy)} · "
                 f"in cash {f.money(d.in_cash, cur, blur=self.privacy)}[/dim]"),
                 id="pie-dividends")
-        table = DataTable(id="pie-instruments", cursor_type="row")
+        table = DataTable(id="pie-instruments", cursor_type="row", zebra_stripes=False)
         table.add_columns(*COLUMNS)
         for ins in self.detail.instruments:
             drift = ins.current_share - ins.expected_share

@@ -13,7 +13,7 @@ class Pies(Static):
         super().__init__(id="pies")
 
     def compose(self) -> ComposeResult:
-        table = DataTable(id="pies-table", cursor_type="row")
+        table = DataTable(id="pies-table", cursor_type="row", zebra_stripes=False)
         table.add_columns(*COLUMNS)
         yield table
 
