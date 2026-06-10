@@ -1,5 +1,5 @@
 [project]
-name = "t212"
+name = "t212-tui"
 version = "0.1.0"
 description = "Read-only Trading 212 portfolio terminal"
 readme = "README.md"
@@ -27,6 +27,7 @@ Repository = "https://github.com/Shadowhusky/t212"
 
 [project.scripts]
 t212 = "t212.cli:main"
+t212-tui = "t212.cli:main"
 
 [dependency-groups]
 dev = [
@@ -38,6 +39,9 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.uv.build-backend]
+module-name = "t212"
 
 [build-system]
 requires = ["uv_build>=0.11.7,<0.12.0"]

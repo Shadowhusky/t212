@@ -53,7 +53,17 @@ colour alone.
 
 ## Install
 
-Needs Python 3.11+ and [uv](https://docs.astral.sh/uv/).
+With [uv](https://docs.astral.sh/uv/) (needs Python 3.11+):
+
+```sh
+uvx t212-tui                # try it without installing
+uv tool install t212-tui    # or install — gives you the `t212` command
+t212
+```
+
+Also works with `pipx install t212-tui` or plain `pip install t212-tui`.
+
+Running from source:
 
 ```sh
 git clone https://github.com/Shadowhusky/t212.git
