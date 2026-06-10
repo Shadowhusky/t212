@@ -38,10 +38,12 @@ in plain text.
 ## Features
 
 - **Dashboard** — hero account value, today's change, open/realised P&L, allocation by type, top movers, and a recorded equity curve.
+- **Pending orders** — your open limit / stop / market orders at a glance (requires the *Orders* scope on your API key; the dashboard tells you if it's missing).
+- **Income & deposits** — all‑time dividends and cash interest (plus last 12 months), and net deposits with your total gain versus what you've put in.
 - **Positions** — sortable, colour‑coded holdings table (value, P&L £/%, weight) with a per‑position detail view. Adapts columns to your terminal width.
-- **Pies** — every AutoInvest pie's value, return and dividends, plus a per‑pie breakdown with target‑vs‑actual **drift**.
-- **History** — orders, dividends (with running total) and cash transactions (with running balance), switchable in place.
-- **Instrument search** — fuzzy‑search the full tradeable universe; instruments you hold are flagged.
+- **Pies** — every AutoInvest pie's value, return and dividends, plus a per‑pie breakdown with target‑vs‑actual **drift** and any instrument **issues** flagged.
+- **History** — orders (with realised P&L and fees), dividends (with running total) and cash transactions (with running balance), switchable in place and pageable with `m`.
+- **Instrument search** — fuzzy‑search the full tradeable universe; instruments you hold are flagged, with market hours in the detail view.
 - **Local equity curve** — the API has no history‑of‑value endpoint, so `t212` records snapshots to a local SQLite database and charts them, honestly labelled *“since first run.”*
 - **Polite by default** — REST polling tuned to each endpoint's rate limit, with jitter and automatic `429` back‑off.
 - **Built for the eyes** — three themes (dark / light / high‑contrast), gain/loss never relies on colour alone (always an arrow + sign), and a **privacy blur** to hide balances when you're sharing your screen.
@@ -91,6 +93,7 @@ uv run t212 --refresh 15    # override the portfolio poll interval (seconds)
 | `Enter` | Open detail (position / pie / instrument) |
 | `Esc` | Close detail |
 | `←` `→` | Switch History section (Orders / Dividends / Transactions) |
+| `m` | Load more (History) |
 | `s` | Cycle sort (Positions) |
 | `z` | Privacy blur — hide all amounts |
 | `t` | Cycle theme |
@@ -104,6 +107,7 @@ On the **Search** tab, just start typing to filter by ticker, name or ISIN.
 ## How it works
 
 - **Read‑only.** The HTTP client exposes only `GET` methods; there is no code path that can mutate your account.
+- **Current API surface.** `t212` talks to Trading 212's `/api/v0` endpoints (account summary, positions, pies, orders, history) authenticated with HTTP Basic `keyId:secret`.
 - **No price stream.** Trading 212's public API is REST‑only, so “live” P&L is polled. `t212` only polls what the active screen needs, on a per‑endpoint cadence (portfolio ≈ 10 s, account ≈ 30 s, history 6/min) with ±25 % jitter, and backs off automatically when the API returns `429`.
 - **Equity curve.** On each successful poll, an account snapshot `(total, free, invested, P&L)` and per‑position values are appended to `~/.local/share/t212/<env>-<account>.sqlite`. The curve therefore grows the more you run it — it is labelled *“since first run”* and never back‑filled with invented data.
 - **Credentials** are read from `--api-key`, then `$TRADING212_API_KEY`, then `~/.config/t212/config.toml`. They are never logged or rendered.
@@ -111,7 +115,7 @@ On the **Search** tab, just start typing to filter by ticker, name or ISIN.
 ## Development
 
 ```sh
-uv run pytest -q     # 68 tests, no network — runs entirely on fixtures
+uv run pytest -q     # 101 tests, no network — runs entirely on fixtures
 uv run t212 --mock   # drive the full UI offline
 ```
 
