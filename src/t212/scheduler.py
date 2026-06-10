@@ -4,7 +4,7 @@ from t212.api.base import T212Client, ScopeError
 
 _HEADER = {"summary", "positions"}
 _TAB_NEEDS = {
-    "dashboard": {"summary", "positions", "orders"},
+    "dashboard": {"summary", "positions", "orders", "pies"},
     "positions": {"summary", "positions"},
     "pies": {"pies"},
     "history": set(),

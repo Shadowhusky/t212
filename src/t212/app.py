@@ -24,6 +24,7 @@ class T212App(App):
         Binding("s", "sort", "Sort"),
         Binding("left", "history_section(-1)", "Prev section", show=False),
         Binding("right", "history_section(1)", "Next section", show=False),
+        Binding("m", "history_more", "More", show=False),
         Binding("question_mark", "help", "Help"),
         Binding("q", "quit", "Quit"),
     ]
@@ -46,6 +47,15 @@ class T212App(App):
         self._positions = []
         self._free = 0.0
         self._refresh = refresh_seconds
+        self._summary = None
+        self._today = 0.0
+        self._orders = None
+        self._pies = []
+        self._pie_names: dict[int, str] = {}
+        self._pie_names_loading = False
+        self._income: dict | None = None
+        self._net_deposits: float | None = None
+        self._history_loaded = False
 
     def on_mount(self) -> None:
         for th in THEMES.values():
@@ -97,11 +107,13 @@ class T212App(App):
             free=summary.cash.available_to_trade if summary else 0.0,
             invested=summary.investments.total_cost if summary else 0.0,
             status=status, privacy=self.privacy)
-        if summary is not None:
-            self.query_one("#dashboard").update_data(
-                summary=summary, positions=positions, resolver=self.resolver,
-                currency=self.currency, today=today,
-                series=self.store.equity_series(), privacy=self.privacy)
+        self._summary = summary
+        self._today = today
+        self._orders = data.get("orders")
+        pies = data.get("pies")
+        if pies is not None:
+            self._pies = pies
+        self._render_dashboard()
         self._positions = positions
         self._free = summary.cash.available_to_trade if summary else 0.0
         if summary is not None:
@@ -109,10 +121,90 @@ class T212App(App):
             self.query_one("#positions").update_data(
                 positions=positions, resolver=self.resolver, currency=self.currency,
                 total_value=total_value, privacy=self.privacy)
-        pies = data.get("pies")
         if pies is not None:
-            self.query_one("#pies").update_data(
-                pies=pies, currency=self.currency, privacy=self.privacy)
+            self._dispatch_pies()
+            self._ensure_pie_names()
+        if summary is not None and not self._history_loaded:
+            self._history_loaded = True
+            self.run_worker(self.load_history_caches())
+
+    def _render_dashboard(self) -> None:
+        if self._summary is None:
+            return
+        self.query_one("#dashboard").update_data(
+            summary=self._summary, positions=self._positions, resolver=self.resolver,
+            currency=self.currency, today=self._today,
+            series=self.store.equity_series(), privacy=self.privacy,
+            orders=self._orders, pies=self._pies, pie_names=self._pie_names,
+            scope_errors=self.scheduler.scope_errors,
+            income=self._income, net_deposits=self._net_deposits)
+
+    def _dispatch_pies(self) -> None:
+        self.query_one("#pies").update_data(
+            pies=self._pies, names=self._pie_names,
+            currency=self.currency, privacy=self.privacy)
+
+    def _ensure_pie_names(self) -> None:
+        missing = [p.id for p in self._pies if p.id not in self._pie_names]
+        if not missing or self._pie_names_loading:
+            return
+        self._pie_names_loading = True
+        self.run_worker(self.load_pie_names(missing))
+
+    async def load_pie_names(self, ids: list[int]) -> None:
+        try:
+            for pid in ids:
+                try:
+                    detail = await self.client.pie(pid)
+                    self._pie_names[pid] = detail.settings.name or f"Pie {pid}"
+                except Exception:
+                    continue
+        finally:
+            self._pie_names_loading = False
+        self._dispatch_pies()
+        self._render_dashboard()
+
+    async def _all_history_pages(self, fetch, model, max_pages: int = 10) -> list:
+        page = await fetch()
+        items = list(page.items)
+        next_path = page.next_path
+        pages = 1
+        while next_path and pages < max_pages:
+            raw = await self.client.get_page(next_path)
+            items.extend(model.model_validate(x) for x in raw.get("items", []))
+            next_path = raw.get("nextPagePath")
+            pages += 1
+        return items
+
+    async def load_history_caches(self) -> None:
+        from datetime import datetime, timedelta, timezone
+        from t212.models import Dividend, Transaction
+        try:
+            divs = await self._all_history_pages(self.client.dividends, Dividend)
+        except Exception:
+            divs = None
+        try:
+            txs = await self._all_history_pages(self.client.transactions, Transaction)
+        except Exception:
+            txs = None
+        if divs is not None:
+            cutoff = datetime.now(timezone.utc) - timedelta(days=365)
+            def recent(d):
+                dt = d.paid_on
+                if dt is None:
+                    return False
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt >= cutoff
+            self._income = {
+                "dividends": sum(d.amount for d in divs if not d.is_interest),
+                "interest": sum(d.amount for d in divs if d.is_interest),
+                "last12m_total": sum(d.amount for d in divs if recent(d)),
+            }
+        if txs is not None:
+            self._net_deposits = sum(
+                t.amount for t in txs if t.type in ("DEPOSIT", "WITHDRAW", "WITHDRAWAL"))
+        self._render_dashboard()
 
     def watch_active_tab(self, tab: str) -> None:
         switcher = self.query_one("#body", ContentSwitcher)
@@ -158,8 +250,11 @@ class T212App(App):
                     self.store.position_series(ticker), self.privacy))
         elif tid == "pies-table":
             from t212.screens.pie_detail import PieDetailScreen
-            detail = await self.client.pie(int(event.row_key.value))
-            self.push_screen(PieDetailScreen(detail, self.resolver, self.currency, self.privacy))
+            pie_id = int(event.row_key.value)
+            detail = await self.client.pie(pie_id)
+            pie = next((p for p in self._pies if p.id == pie_id), None)
+            self.push_screen(PieDetailScreen(detail, self.resolver, self.currency,
+                                             self.privacy, pie=pie))
         elif tid == "search-table":
             from t212.screens.instrument_detail import InstrumentDetail
             ticker = event.row_key.value
@@ -178,6 +273,11 @@ class T212App(App):
         hist = self.query_one("#history")
         i = (SECTIONS.index(hist.section) + delta) % len(SECTIONS)
         self.run_worker(hist.load_section(SECTIONS[i]))
+
+    def action_history_more(self) -> None:
+        if self.active_tab != "history":
+            return
+        self.run_worker(self.query_one("#history").load_more())
 
     def action_sort(self) -> None:
         if self.active_tab != "positions":
