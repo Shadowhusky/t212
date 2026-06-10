@@ -10,10 +10,11 @@ T = TypeVar("T")
 class Page(Generic[T]):
     items: list[T] = field(default_factory=list)
     next_cursor: str | None = None
+    next_path: str | None = None
 
     @property
     def has_more(self) -> bool:
-        return self.next_cursor is not None
+        return self.next_cursor is not None or self.next_path is not None
 
 
 def parse_cursor(next_page_path: str | None) -> str | None:

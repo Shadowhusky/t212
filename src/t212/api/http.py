@@ -1,12 +1,21 @@
 from __future__ import annotations
+import time
 import httpx
-from t212.api.base import ApiError, AuthError, RateLimited
+from t212.api.base import ApiError, AuthError, RateLimited, ScopeError
 from t212.api.ratelimit import RateLimitGovernor
-from t212.models import (AccountInfo, Cash, Position, Pie, PieDetail, Order,
-                         Instrument, Exchange, HistoryOrder, Dividend, Transaction)
+from t212.models import (AccountSummary, Position, PendingOrder, Pie, PieDetail,
+                         TradableInstrument, Exchange, HistoricalOrder, Dividend, Transaction)
 from t212.pagination import Page, parse_cursor
 
 V = "/api/v0"
+
+
+def _limit_key_for_path(path: str) -> str:
+    if "history/orders" in path:
+        return "history_orders"
+    if "dividends" in path:
+        return "dividends"
+    return "transactions"
 
 
 class HttpT212Client:
@@ -30,23 +39,27 @@ class HttpT212Client:
         except httpx.HTTPError as e:
             raise ApiError(str(e)) from e
         if r.status_code == 429:
-            retry = float(r.headers.get("x-ratelimit-reset", "5"))
+            raw = float(r.headers.get("x-ratelimit-reset", "5"))
+            # header may be a unix timestamp rather than seconds-from-now
+            retry = max(1.0, raw - time.time()) if raw > 1e9 else raw
             self._gov.note_server_reset(limit_key, retry)
             raise RateLimited(retry)
-        if r.status_code in (401, 403):
-            raise AuthError("unauthorized — check API key, scopes, or live/demo environment")
+        if r.status_code == 401:
+            raise AuthError("unauthorized — check API key or live/demo environment")
+        if r.status_code == 403:
+            raise ScopeError("API key missing a required scope for this endpoint")
         if r.status_code >= 400:
             raise ApiError(f"HTTP {r.status_code} for {path}")
         return r.json()
 
-    async def account_info(self) -> AccountInfo:
-        return AccountInfo.model_validate(await self._get("account_info", f"{V}/equity/account/info"))
+    async def summary(self) -> AccountSummary:
+        return AccountSummary.model_validate(await self._get("summary", f"{V}/equity/account/summary"))
 
-    async def cash(self) -> Cash:
-        return Cash.model_validate(await self._get("cash", f"{V}/equity/account/cash"))
+    async def positions(self) -> list[Position]:
+        return [Position.model_validate(x) for x in await self._get("positions", f"{V}/equity/positions")]
 
-    async def portfolio(self) -> list[Position]:
-        return [Position.model_validate(x) for x in await self._get("portfolio", f"{V}/equity/portfolio")]
+    async def orders(self) -> list[PendingOrder]:
+        return [PendingOrder.model_validate(x) for x in await self._get("orders", f"{V}/equity/orders")]
 
     async def pies(self) -> list[Pie]:
         return [Pie.model_validate(x) for x in await self._get("pies", f"{V}/equity/pies")]
@@ -54,29 +67,41 @@ class HttpT212Client:
     async def pie(self, pie_id: int) -> PieDetail:
         return PieDetail.model_validate(await self._get("pie", f"{V}/equity/pies/{pie_id}"))
 
-    async def orders(self) -> list[Order]:
-        return [Order.model_validate(x) for x in await self._get("orders", f"{V}/equity/orders")]
-
-    async def instruments(self) -> list[Instrument]:
-        return [Instrument.model_validate(x) for x in await self._get("instruments", f"{V}/equity/metadata/instruments")]
+    async def instruments(self) -> list[TradableInstrument]:
+        return [TradableInstrument.model_validate(x)
+                for x in await self._get("instruments", f"{V}/equity/metadata/instruments")]
 
     async def exchanges(self) -> list[Exchange]:
         return [Exchange.model_validate(x) for x in await self._get("exchanges", f"{V}/equity/metadata/exchanges")]
 
-    async def _page(self, limit_key: str, path: str, model, cursor: str | None):
-        params = {"cursor": cursor, "limit": 20} if cursor else {"limit": 20}
+    async def _page(self, limit_key: str, path: str, model,
+                    cursor: str | None, ticker: str | None = None):
+        params: dict = {"limit": 50}
+        if cursor:
+            params["cursor"] = cursor
+        if ticker:
+            params["ticker"] = ticker
         raw = await self._get(limit_key, path, params=params)
+        next_path = raw.get("nextPagePath")
         return Page(items=[model.model_validate(x) for x in raw.get("items", [])],
-                    next_cursor=parse_cursor(raw.get("nextPagePath")))
+                    next_cursor=parse_cursor(next_path), next_path=next_path)
 
-    async def history_orders(self, cursor: str | None = None) -> Page[HistoryOrder]:
-        return await self._page("history_orders", f"{V}/equity/history/orders", HistoryOrder, cursor)
+    async def history_orders(self, cursor: str | None = None,
+                             ticker: str | None = None) -> Page[HistoricalOrder]:
+        return await self._page("history_orders", f"{V}/equity/history/orders",
+                                HistoricalOrder, cursor, ticker)
 
-    async def dividends(self, cursor: str | None = None) -> Page[Dividend]:
-        return await self._page("dividends", f"{V}/history/dividends", Dividend, cursor)
+    async def dividends(self, cursor: str | None = None,
+                        ticker: str | None = None) -> Page[Dividend]:
+        return await self._page("dividends", f"{V}/equity/history/dividends",
+                                Dividend, cursor, ticker)
 
     async def transactions(self, cursor: str | None = None) -> Page[Transaction]:
-        return await self._page("transactions", f"{V}/history/transactions", Transaction, cursor)
+        return await self._page("transactions", f"{V}/equity/history/transactions",
+                                Transaction, cursor)
+
+    async def get_page(self, path: str) -> dict:
+        return await self._get(_limit_key_for_path(path), path)
 
     async def aclose(self) -> None:
         await self._client.aclose()
