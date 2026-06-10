@@ -30,6 +30,7 @@ class T212App(App):
         Binding("m", "history_more", "More"),
         Binding("j", "move_cursor(1)", "Down", show=False),
         Binding("k", "move_cursor(-1)", "Up", show=False),
+        Binding("slash", "focus_search", "Find", show=False),
         Binding("question_mark", "help", "Help"),
         Binding("q", "quit", "Quit"),
     ]
@@ -321,7 +322,7 @@ class T212App(App):
         self._update_hintbar()
 
     _FOCUS_TARGETS = {"positions": "#positions-table", "pies": "#pies-table",
-                      "history": "#history-table", "search": "#search-input"}
+                      "history": "#history-table", "search": "#search-table"}
 
     def _focus_primary(self, tab: str) -> None:
         target = self._FOCUS_TARGETS.get(tab)
@@ -376,6 +377,11 @@ class T212App(App):
             self.screen.dismiss()
             return
         self.push_screen(HelpScreen())
+
+    def action_focus_search(self) -> None:
+        from textual.widgets import Input
+        self.active_tab = "search"
+        self.query_one("#search-input", Input).focus()
 
     def action_move_cursor(self, delta: int) -> None:
         from textual.widgets import DataTable

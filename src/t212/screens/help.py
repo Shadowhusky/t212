@@ -6,6 +6,7 @@ from textual.widgets import Static
 
 _SECTIONS = [
     ("Navigation", "1–5 tabs · ↑↓/jk move · ⏎ detail · Esc back"),
+    ("Search", "/ find from anywhere · type letters to filter · Esc → results"),
     ("History", "←/→ section · m load more"),
     ("Positions", "s sort · ◔ = quantity in pies"),
     ("Display", "z privacy blur · t theme · r refresh now"),

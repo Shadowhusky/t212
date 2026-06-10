@@ -48,3 +48,43 @@ async def test_instrument_detail_rows():
         assert "Max qty" in text and "25000" in text
         assert "Ext. hours" in text and "Yes" in text
         assert "Market: NASDAQ" in text
+
+
+async def test_digits_switch_tabs_from_search():
+    app = T212App(client=MockT212Client(FIX), environment="demo", currency="GBP")
+    async with app.run_test() as pilot:
+        await app.do_refresh()
+        await pilot.press("5")
+        await pilot.pause()
+        assert app.active_tab == "search"
+        await pilot.press("2")                       # results table focused → digit switches tab
+        await pilot.pause()
+        assert app.active_tab == "positions"
+
+
+async def test_typing_letter_forwards_to_filter():
+    from textual.widgets import Input
+    app = T212App(client=MockT212Client(FIX), environment="demo", currency="GBP")
+    async with app.run_test() as pilot:
+        await app.do_refresh()
+        await pilot.press("5")
+        await pilot.pause()
+        await pilot.press("a")
+        await pilot.pause()
+        inp = app.query_one("#search-input", Input)
+        assert inp.has_focus and inp.value == "a"
+        await pilot.press("2")                       # query underway → digit types, no tab switch
+        await pilot.pause()
+        assert app.active_tab == "search" and inp.value == "a2"
+
+
+async def test_slash_jumps_to_search_from_anywhere():
+    from textual.widgets import Input
+    app = T212App(client=MockT212Client(FIX), environment="demo", currency="GBP")
+    async with app.run_test() as pilot:
+        await app.do_refresh()
+        assert app.active_tab == "dashboard"
+        await pilot.press("slash")
+        await pilot.pause()
+        assert app.active_tab == "search"
+        assert app.query_one("#search-input", Input).has_focus

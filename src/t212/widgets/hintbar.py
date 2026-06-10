@@ -4,7 +4,7 @@ from textual.widgets import Static
 
 COMMON = "1-5 tabs · ⏎ detail · ? help · q quit"
 TAB_HINTS = {"positions": ["s sort"], "search": ["type to filter", "esc → results"]}
-EXTRA = ["z privacy", "t theme", "r refresh", "j/k move"]
+EXTRA = ["/ find", "z privacy", "t theme", "r refresh", "j/k move"]
 
 
 class HintBar(Static):

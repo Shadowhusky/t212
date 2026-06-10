@@ -81,7 +81,7 @@ async def test_tab_switch_focuses_primary_widget():
         assert app.focused is app.query_one("#history-table")
         await pilot.press("5")
         await pilot.pause()
-        assert app.focused is app.query_one("#search-input")
+        assert app.focused is app.query_one("#search-table")   # digits stay free for tabs
 
 async def test_refresh_key_gives_feedback():
     app = make_app()

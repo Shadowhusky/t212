@@ -15,7 +15,8 @@ class Search(Static):
         self._instruments: list[Instrument] = []
 
     def compose(self) -> ComposeResult:
-        yield Input(placeholder="Search ticker / name / ISIN…", id="search-input")
+        yield Input(placeholder="Search ticker / name / ISIN…", id="search-input",
+                    select_on_focus=False)
         table = DataTable(id="search-table", cursor_type="row", zebra_stripes=False)
         table.add_columns(*COLUMNS)
         yield table
@@ -30,10 +31,21 @@ class Search(Static):
         self.set_query(event.value)
 
     def on_key(self, event: events.Key) -> None:
+        inp = self.query_one("#search-input", Input)
         # Escape moves focus from the filter input to the results, freeing 1-5 etc.
-        if event.key == "escape" and self.query_one("#search-input", Input).has_focus:
+        if event.key == "escape" and inp.has_focus:
             self.query_one("#search-table", DataTable).focus()
             event.stop()
+            return
+        # Typing a letter while the results have focus starts filtering;
+        # digits stay free for tab switching until a query is underway.
+        ch = event.character
+        if not inp.has_focus and ch and ch.isalpha() and len(ch) == 1 and not event.key.startswith("ctrl"):
+            inp.focus()
+            inp.value += ch
+            inp.cursor_position = len(inp.value)
+            event.stop()
+            event.prevent_default()
 
     def set_query(self, query: str) -> None:
         q = query.strip().lower()
