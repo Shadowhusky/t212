@@ -5,7 +5,12 @@ from textual.widgets import Static
 from textual.content import Content
 from t212 import formatting as f
 from t212.charts import window_series
-from t212.widgets.render import bar, PNL_TAG, sparkline
+from t212.widgets.render import bar, PNL_TAG, pnl_markup, sparkline
+
+ORDERS_SCOPE_HINT = ("[dim]Pending orders: not available — enable the 'Orders' scope "
+                     "for your API key in Trading 212 → Settings → API[/dim]")
+
+_TIF = {"GOOD_TILL_CANCEL": "GTC", "DAY": "DAY"}
 
 
 class Dashboard(Vertical):
@@ -16,35 +21,122 @@ class Dashboard(Vertical):
         yield Static("Loading…", id="dash-metrics")
 
     def update_data(self, *, summary, positions, resolver, currency: str, today: float,
-                    series, privacy: bool) -> None:
+                    series, privacy: bool, orders=None, pies=None, pie_names=None,
+                    scope_errors=frozenset(), income=None, net_deposits=None) -> None:
         cur = currency
-        inv = summary.investments
-        ppl_tag = PNL_TAG[f.pnl_class(inv.unrealized_pnl)]
-        lines = [
-            "[dim]OPEN P&L[/dim]",
-            f"[{ppl_tag}]{f.arrow(inv.unrealized_pnl)} {f.signed_money(inv.unrealized_pnl, cur, blur=privacy)}  "
-            f"{f.percent(inv.unrealized_pnl / inv.total_cost if inv.total_cost else 0)}[/{ppl_tag}]",
-            f"[dim]Realised   {f.signed_money(inv.realized_pnl, cur, blur=privacy)}[/dim]",
-            f"[dim]Invested   {f.money(inv.total_cost, cur, blur=privacy)}[/dim]",
-            f"[dim]Positions  {len(positions)}[/dim]",
-            "",
-            "[dim]ALLOCATION · by type[/dim]",
-        ]
+        lines: list[str] = []
+        lines += _investments_lines(summary, cur, privacy)
+        lines.append("")
+        lines += _cash_lines(summary, cur, privacy)
+        if pies:
+            lines.append("")
+            lines += _pies_lines(pies, pie_names or {}, cur, privacy)
+        lines.append("")
+        lines += _orders_lines(orders, scope_errors)
+        lines.append("")
+        lines += _income_lines(income, cur, privacy)
+        lines.append("")
+        lines += _deposits_lines(net_deposits, summary, cur, privacy)
+        lines.append("")
+        lines.append("[dim]ALLOCATION · by type[/dim]")
         for label, frac in _alloc_by_type(positions, summary, resolver).items():
             lines.append(f"{label:<7}{bar(frac)}  {frac * 100:>3.0f}%")
-        lines.append("")
-        lines.append("[dim]TOP MOVERS[/dim]")
-        for p in _top_movers(positions):
-            tag = PNL_TAG[f.pnl_class(p.ppl)]
-            lines.append(
-                f"{f.display_ticker(p.ticker):<8}"
-                f"[{tag}]{f.arrow(p.ppl)} {f.percent(p.pnl_pct or 0.0)}[/{tag}]")
+        if positions:
+            lines.append("")
+            lines.append("[dim]TOP MOVERS[/dim]")
+            for p in _top_movers(positions):
+                tag = PNL_TAG[f.pnl_class(p.ppl)]
+                lines.append(
+                    f"{f.display_ticker(p.ticker):<8}"
+                    f"[{tag}]{f.arrow(p.ppl)} {f.percent(p.pnl_pct or 0.0)}[/{tag}]")
         pts = [v for _, v in window_series(series or [], 0)]
         if len(pts) >= 2:
             lines.append("")
             lines.append("[dim]EQUITY · since first run[/dim]")
             lines.append(sparkline(pts, 48))
         self.query_one("#dash-metrics", Static).update(Content.from_markup("\n".join(lines)))
+
+
+def _investments_lines(summary, cur, privacy) -> list[str]:
+    inv = summary.investments
+    pct = inv.unrealized_pnl / inv.total_cost if inv.total_cost else 0.0
+    return [
+        "[dim]INVESTMENTS[/dim]",
+        f"Value       {f.money(inv.current_value, cur, blur=privacy)}"
+        f"  [dim]cost {f.money(inv.total_cost, cur, blur=privacy)}[/dim]",
+        f"Unrealised  {pnl_markup(inv.unrealized_pnl, pct, cur, blur=privacy)}",
+        f"Realised    {pnl_markup(inv.realized_pnl, None, cur, blur=privacy)}",
+    ]
+
+
+def _cash_lines(summary, cur, privacy) -> list[str]:
+    cash = summary.cash
+    return [
+        "[dim]CASH[/dim]",
+        f"Available   {f.money(cash.available_to_trade, cur, blur=privacy)}",
+        f"In pies     {f.money(cash.in_pies, cur, blur=privacy)}",
+        f"Reserved    {f.money(cash.reserved_for_orders, cur, blur=privacy)}",
+        f"Total       [b]{f.money(summary.total_value, cur, blur=privacy)}[/b]",
+    ]
+
+
+def _pies_lines(pies, names: dict, cur, privacy) -> list[str]:
+    lines = ["[dim]PIES[/dim]"]
+    for pie in pies:
+        name = names.get(pie.id) or f"Pie {pie.id}"
+        r = pie.result
+        line = (f"{name[:18]:<18} {f.money(r.value, cur, blur=privacy):>11}  "
+                f"{pnl_markup(r.result, r.result_coef, cur, blur=privacy)}")
+        if pie.status:
+            line += f"  [dim]{pie.status}[/dim]"
+        lines.append(line)
+    return lines
+
+
+def _orders_lines(orders, scope_errors) -> list[str]:
+    lines = ["[dim]PENDING ORDERS[/dim]"]
+    if "orders" in scope_errors:
+        lines.append(ORDERS_SCOPE_HINT)
+    elif orders:
+        for o in orders:
+            tag = "$success" if o.side == "BUY" else "$error"
+            price = ""
+            if o.limit_price is not None:
+                price = f" @ {o.limit_price:,.2f}"
+            elif o.stop_price is not None:
+                price = f" stop {o.stop_price:,.2f}"
+            tif = _TIF.get(o.time_in_force or "", o.time_in_force or "")
+            lines.append(
+                f"[{tag}]{o.side or '—'}[/{tag}] {o.type or '—'} "
+                f"{f.display_ticker(o.ticker or '')} {abs(o.quantity):g}{price}"
+                f" [dim]· {o.status or '—'}{' · ' + tif if tif else ''}[/dim]")
+    elif orders is None:
+        lines.append("[dim]…[/dim]")
+    else:
+        lines.append("[dim]No pending orders[/dim]")
+    return lines
+
+
+def _income_lines(income, cur, privacy) -> list[str]:
+    lines = ["[dim]INCOME · all-time[/dim]"]
+    if income is None:
+        lines.append("[dim]not available[/dim]")
+    else:
+        lines.append(f"Dividends   {f.money(income['dividends'], cur, blur=privacy)}")
+        lines.append(f"Interest    {f.money(income['interest'], cur, blur=privacy)}")
+        lines.append(f"Last 12m    {f.money(income['last12m_total'], cur, blur=privacy)}")
+    return lines
+
+
+def _deposits_lines(net_deposits, summary, cur, privacy) -> list[str]:
+    lines = ["[dim]DEPOSITS[/dim]"]
+    if net_deposits is None:
+        lines.append("[dim]not available[/dim]")
+    else:
+        gain = summary.total_value - net_deposits
+        lines.append(f"Net deposits {f.money(net_deposits, cur, blur=privacy)}")
+        lines.append(f"Total gain   {pnl_markup(gain, None, cur, blur=privacy)}")
+    return lines
 
 
 def _alloc_by_type(positions, summary, resolver) -> dict[str, float]:
