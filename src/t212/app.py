@@ -25,7 +25,9 @@ class T212App(App):
         Binding("s", "sort", "Sort"),
         Binding("left", "history_section(-1)", "Prev section", show=False),
         Binding("right", "history_section(1)", "Next section", show=False),
-        Binding("m", "history_more", "More", show=False),
+        Binding("m", "history_more", "More"),
+        Binding("j", "move_cursor(1)", "Down", show=False),
+        Binding("k", "move_cursor(-1)", "Up", show=False),
         Binding("question_mark", "help", "Help"),
         Binding("q", "quit", "Quit"),
     ]
@@ -228,6 +230,20 @@ class T212App(App):
     def action_privacy(self) -> None:
         self.privacy = not self.privacy
 
+    def watch_privacy(self, privacy: bool) -> None:
+        if self._summary is None:
+            return
+        status = "● live" if self.scheduler.last_error is None else "◐ reconnecting"
+        self.query_one(SummaryHeader).update_data(
+            total=self._summary.total_value, today=self._today, free=self._free,
+            invested=self._summary.investments.total_cost, status=status, privacy=privacy)
+        self._render_dashboard()
+        total_value = sum(p.market_value for p in self._positions) + self._free
+        self.query_one("#positions").update_data(
+            positions=self._positions, resolver=self.resolver, currency=self.currency,
+            total_value=total_value, privacy=privacy)
+        self._dispatch_pies()
+
     def action_cycle_theme(self) -> None:
         names = theme_names()
         self._theme_idx = (self._theme_idx + 1) % len(names)
@@ -238,8 +254,19 @@ class T212App(App):
         self.run_worker(self.do_refresh())
 
     def action_help(self) -> None:
-        self.notify("1-5 tabs · ↑↓ move · ⏎ detail · z privacy · t theme · r refresh · q quit",
-                    title="Keys", timeout=6)
+        from t212.screens.help import HelpScreen
+        if isinstance(self.screen, HelpScreen):
+            self.screen.dismiss()
+            return
+        self.push_screen(HelpScreen())
+
+    def action_move_cursor(self, delta: int) -> None:
+        from textual.widgets import DataTable
+        if isinstance(self.focused, DataTable):
+            if delta > 0:
+                self.focused.action_cursor_down()
+            else:
+                self.focused.action_cursor_up()
 
     async def on_data_table_row_selected(self, event) -> None:
         tid = event.data_table.id

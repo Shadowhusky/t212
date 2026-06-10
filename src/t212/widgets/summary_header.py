@@ -31,9 +31,10 @@ class SummaryHeader(Static):
         pnl_tag = _PNL_TAG[f.pnl_class(self._today)]
         today_txt = f"{f.arrow(self._today)} {f.signed_money(self._today, cur, blur=self._privacy)}"
         st_tag = "$warning" if "reconnect" in self._status.lower() else "$success"
+        private = "  [$warning]◌ private[/$warning]" if self._privacy else ""
         markup = (
             f"[b] t212  [/b][{st_tag}]{self._status}[/{st_tag}]"
-            f"[b] · {self.environment.upper()} · {cur}[/b]\n"
+            f"[b] · {self.environment.upper()} · {cur}[/b]{private}\n"
             f"[dim] Portfolio value  [/dim]"
             f"[b]{f.money(self._total, cur, blur=self._privacy)}[/b]"
             f"[dim]   Today [/dim]"

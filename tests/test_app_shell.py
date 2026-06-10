@@ -1,5 +1,7 @@
 import pathlib
 from t212.app import T212App
+from t212.screens.help import HelpScreen
+from t212.widgets.summary_header import SummaryHeader
 from t212.widgets.tabbar import TabBar
 
 FIX = pathlib.Path(__file__).parent / "fixtures"
@@ -41,3 +43,29 @@ async def test_tabbar_shows_active_tab():
         assert "3 Pies" in text
         for label in ("Dashboard", "Positions", "Pies", "History", "Search"):
             assert label in text
+
+async def test_help_modal_opens_and_closes():
+    app = make_app()
+    async with app.run_test() as pilot:
+        await pilot.press("question_mark")
+        assert isinstance(app.screen, HelpScreen)
+        assert "read-only" in app.screen.query_one("#help-body").visual.plain
+        await pilot.press("escape")
+        assert not isinstance(app.screen, HelpScreen)
+
+async def test_help_modal_toggles_with_question_mark():
+    app = make_app()
+    async with app.run_test() as pilot:
+        await pilot.press("question_mark")
+        assert isinstance(app.screen, HelpScreen)
+        await pilot.press("question_mark")
+        assert not isinstance(app.screen, HelpScreen)
+
+async def test_privacy_marker_in_header():
+    app = make_app()
+    async with app.run_test() as pilot:
+        await app.workers.wait_for_complete()
+        await pilot.press("z")
+        assert "◌ private" in app.query_one(SummaryHeader).visual.plain
+        await pilot.press("z")
+        assert "◌ private" not in app.query_one(SummaryHeader).visual.plain
