@@ -4,7 +4,7 @@ A terminal dashboard for your Trading 212 account. **Read-only by design** — i
 can show you everything and touch nothing: the only HTTP verb in the client is
 `GET`.
 
-![dashboard](docs/dashboard.svg)
+![dashboard](docs/dashboard.png)
 
 ## Quick start
 
@@ -42,8 +42,8 @@ t212 config set-key                            # prompt → saved chmod 600
 
 | | |
 |---|---|
-| ![positions](docs/positions.svg) | ![history](docs/history.svg) |
-| ![pies](docs/pies.svg) | ![help](docs/help.svg) |
+| ![positions](docs/positions.png) | ![history](docs/history.png) |
+| ![pies](docs/pies.png) | ![help](docs/help.png) |
 
 - **Dashboard** — value, unrealised/realised P&L, cash breakdown, pending
   orders, dividend & interest income, net deposits vs. current value,
@@ -97,9 +97,9 @@ t212 --refresh 15 # poll interval in seconds
 
 ```sh
 uv sync
-uv run pytest -q                       # 120 tests, fixture-driven, no network
-uv run t212 --mock                     # full UI offline
-uv run python scripts/screenshots.py  # regenerate README screenshots
+uv run pytest -q     # fixture-driven, no network
+uv run t212 --mock   # full UI offline
+uv run --with playwright python scripts/screenshots.py   # regenerate screenshots
 ```
 
 ```

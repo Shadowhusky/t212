@@ -51,9 +51,16 @@ class Dashboard(Vertical):
                     f"[{tag}]{f.arrow(p.ppl)} {f.percent(p.pnl_pct or 0.0)}[/{tag}]")
         pts = [v for _, v in window_series(series or [], 0)]
         if len(pts) >= 2:
+            lo, hi = min(pts), max(pts)
+            delta = pts[-1] - pts[0]
+            tag = PNL_TAG[f.pnl_class(delta)]
             lines.append("")
-            lines.append("[dim]EQUITY · since first run[/dim]")
-            lines.append(sparkline(pts, 48))
+            lines.append(
+                f"[dim]EQUITY · since first run · "
+                f"low {f.money(lo, currency, blur=privacy)} · "
+                f"high {f.money(hi, currency, blur=privacy)} · [/dim]"
+                f"[{tag}]{f.arrow(delta)} {f.signed_money(delta, currency, blur=privacy)}[/{tag}]")
+            lines.append(f"[$accent]{sparkline(pts, 60)}[/$accent]")
         self.query_one("#dash-metrics", Static).update(Content.from_markup("\n".join(lines)))
 
 
