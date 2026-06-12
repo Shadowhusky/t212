@@ -32,7 +32,7 @@ async def test_dashboard_renders_equity_when_points_exist():
             "INSERT OR REPLACE INTO equity_snapshots VALUES (?,?,?,?,?,?,?)",
             (1, 24000.0, 1000.0, 23000.0, 0.0, 0.0, "GBP"))
         app.store.db.commit()
-        await app.do_refresh()
+        app._render_dashboard()
         await pilot.pause()
         text = _plain(app.query_one("#dash-metrics", Static))
         assert "EQUITY" in text

@@ -39,8 +39,8 @@ class T212App(App):
     privacy: reactive[bool] = reactive(False)
 
     def __init__(self, *, client=None, environment: str, currency: str,
-                 store=None, resolver=None, scheduler=None, refresh_seconds: float = 10.0,
-                 persist: bool = False):
+                 store=None, resolver=None, scheduler=None,
+                 refresh_override: float | None = None, persist: bool = False):
         super().__init__()
         from t212.scheduler import RefreshScheduler
         from t212.store import Store
@@ -52,13 +52,16 @@ class T212App(App):
         self._persist = persist
         self.resolver = resolver
         self.scheduler = scheduler or (RefreshScheduler(client) if client is not None else None)
+        self._refresh_override = refresh_override
+        self._apply_refresh_override()
         self._polling = False
+        self._refresh_running = False
+        self._first_paint_done = False
         self._pending_client = None
         self._reauth_prompted = False
         self._theme_idx = 0
         self._positions = []
         self._free = 0.0
-        self._refresh = refresh_seconds
         self._summary = None
         self._today = 0.0
         self._orders = None
@@ -81,11 +84,24 @@ class T212App(App):
         else:
             self._start_polling()
 
+    def _apply_refresh_override(self) -> None:
+        if self.scheduler is not None and self._refresh_override:
+            self.scheduler.cadences["positions"] = float(max(1, self._refresh_override))
+
     def _start_polling(self) -> None:
         if not self._polling:
             self._polling = True
-            self.set_interval(self._refresh_seconds(), self.do_refresh)
-        self.run_worker(self.do_refresh())
+            self.set_interval(2.0, self._tick)
+        self.run_worker(self._tick())
+
+    async def _tick(self) -> None:
+        if self._refresh_running:
+            return
+        self._refresh_running = True
+        try:
+            await self.do_refresh()
+        finally:
+            self._refresh_running = False
 
     async def _validate_key(self, api_key: str, environment: str):
         from t212.api.http import HttpT212Client
@@ -120,6 +136,7 @@ class T212App(App):
             self._store_is_default = False
             self._reauth_prompted = False
         self.scheduler = RefreshScheduler(self.client)
+        self._apply_refresh_override()
         header = self.query_one(SummaryHeader)
         header.environment = self.environment
         header.currency = self.currency
@@ -127,9 +144,6 @@ class T212App(App):
         history.client = self.client
         history.currency = self.currency
         self._start_polling()
-
-    def _refresh_seconds(self) -> float:
-        return self._refresh
 
     def compose(self) -> ComposeResult:
         yield SummaryHeader(self.environment, self.currency)
@@ -149,13 +163,7 @@ class T212App(App):
 
     async def do_refresh(self) -> None:
         data = await self.scheduler.poll_once()
-        summary = data.get("summary")
-        if summary is not None:
-            self.currency = summary.currency
-        if summary is not None and self._persist and self._store_is_default:
-            from t212.store import Store, default_db_path
-            self.store = Store(default_db_path(self.environment, summary.id))
-            self._store_is_default = False
+        fetched = self.scheduler.last_fetched
         from t212.api.base import AuthError
         if isinstance(self.scheduler.last_error, AuthError) and not self._reauth_prompted:
             from t212.screens.setup import SetupScreen
@@ -166,6 +174,17 @@ class T212App(App):
                                 status="[$error]saved key was rejected — "
                                        "re-enter your credentials[/$error]"),
                     callback=self._setup_done)
+        status = "● live" if self.scheduler.last_error is None else "◐ reconnecting"
+        if not fetched and self._first_paint_done:
+            self.query_one(SummaryHeader).set_status(status)
+            return
+        summary = data.get("summary")
+        if summary is not None:
+            self.currency = summary.currency
+        if summary is not None and self._persist and self._store_is_default:
+            from t212.store import Store, default_db_path
+            self.store = Store(default_db_path(self.environment, summary.id))
+            self._store_is_default = False
         if self.resolver is None:
             from t212.resolve import Resolver
             try:
@@ -173,42 +192,63 @@ class T212App(App):
                                          await self.client.exchanges())
             except Exception:
                 self.resolver = Resolver([], [])
+        elif "instruments" in fetched:
+            from t212.resolve import Resolver
+            self.resolver = Resolver(data.get("instruments", []), data.get("exchanges", []))
+            if self.active_tab == "search":
+                self.query_one("#search").set_universe(self.resolver.all_instruments())
         positions = data.get("positions", [])
-        if summary is not None:
-            self.store.record(summary, positions, self.currency)
-        today = 0.0
-        if summary is not None:
-            base = self.store.today_baseline()
-            today = (summary.total_value - base) if base is not None else 0.0
-        status = "● live" if self.scheduler.last_error is None else "◐ reconnecting"
-        self.query_one(SummaryHeader).update_data(
-            total=summary.total_value if summary else 0.0, today=today,
-            free=summary.cash.available_to_trade if summary else 0.0,
-            invested=summary.investments.total_cost if summary else 0.0,
-            status=status, privacy=self.privacy)
-        self._summary = summary
-        self._today = today
-        self._orders = data.get("orders")
         pies = data.get("pies")
+        if {"summary", "positions"} & fetched or not self._first_paint_done:
+            if summary is not None:
+                self.store.record(summary, positions, self.currency)
+            today = 0.0
+            if summary is not None:
+                base = self.store.today_baseline()
+                today = (summary.total_value - base) if base is not None else 0.0
+            self.query_one(SummaryHeader).update_data(
+                total=summary.total_value if summary else 0.0, today=today,
+                free=summary.cash.available_to_trade if summary else 0.0,
+                invested=summary.investments.total_cost if summary else 0.0,
+                status=status, privacy=self.privacy)
+            self._summary = summary
+            self._today = today
+            self._positions = positions
+            self._free = summary.cash.available_to_trade if summary else 0.0
+            if summary is not None:
+                total_value = sum(p.market_value for p in positions) + summary.cash.available_to_trade
+                self.query_one("#positions").update_data(
+                    positions=positions, resolver=self.resolver, currency=self.currency,
+                    total_value=total_value, privacy=self.privacy)
+            if "positions" in fetched:
+                self._refresh_position_detail()
+        else:
+            self.query_one(SummaryHeader).set_status(status)
+        self._orders = data.get("orders")
         if pies is not None:
             self._pies = pies
         self._render_dashboard()
-        self._positions = positions
-        self._free = summary.cash.available_to_trade if summary else 0.0
-        if summary is not None:
-            total_value = sum(p.market_value for p in positions) + summary.cash.available_to_trade
-            self.query_one("#positions").update_data(
-                positions=positions, resolver=self.resolver, currency=self.currency,
-                total_value=total_value, privacy=self.privacy)
-        if pies is not None:
+        if pies is not None and ("pies" in fetched or not self._first_paint_done):
             self._dispatch_pies()
             self._ensure_pie_names()
         if summary is not None and not self._history_loaded:
             self._history_loaded = True
             self.run_worker(self.load_history_caches())
+        if summary is not None:
+            self._first_paint_done = True
         if not self._initial_focus_done:
             self._initial_focus_done = True
             self._focus_primary(self.active_tab)
+
+    def _refresh_position_detail(self) -> None:
+        from t212.screens.position_detail import PositionDetail
+        if not isinstance(self.screen, PositionDetail):
+            return
+        p = next((x for x in self._positions
+                  if x.ticker == self.screen.position.ticker), None)
+        if p is not None:
+            self.screen.privacy = self.privacy
+            self.screen.refresh_data(p, self.store.position_series(p.ticker))
 
     def _render_dashboard(self) -> None:
         if self._summary is None:
@@ -366,7 +406,7 @@ class T212App(App):
         self.query_one(SummaryHeader).set_status("⟳ refreshing")
 
         async def _manual_refresh() -> None:
-            await self.do_refresh()
+            await self._tick()
             self.notify("Refreshed", severity="information", timeout=2)
 
         self.run_worker(_manual_refresh())
@@ -459,11 +499,12 @@ class T212App(App):
 
 def run_app(*, environment, mock, fixtures, refresh, api_key):
     from t212.api.limits import RATE_LIMITS
-    rs = float(refresh) if refresh else 10.0
+    override = float(refresh) if refresh else None
     if mock:
         from t212.api.mock import MockT212Client
         client = MockT212Client(fixtures)
-        T212App(client=client, environment=environment, currency="GBP", refresh_seconds=rs).run()
+        T212App(client=client, environment=environment, currency="GBP",
+                refresh_override=override).run()
         return
     from t212.api.http import HttpT212Client
     from t212.api.ratelimit import RateLimitGovernor
@@ -471,9 +512,10 @@ def run_app(*, environment, mock, fixtures, refresh, api_key):
     try:
         settings = resolve_settings(environment=environment, api_key=api_key, refresh=refresh)
     except MissingKeyError:
-        T212App(client=None, environment=environment, currency="", refresh_seconds=rs).run()
+        T212App(client=None, environment=environment, currency="",
+                refresh_override=override).run()
         return
     client = HttpT212Client(api_key=settings.api_key, base_url=settings.base_url,
                             governor=RateLimitGovernor(RATE_LIMITS))
     T212App(client=client, environment=environment, currency="GBP",
-            refresh_seconds=rs, persist=True).run()
+            refresh_override=override, persist=True).run()
