@@ -19,7 +19,15 @@ class PositionDetail(ModalScreen):
         self.privacy = privacy
 
     def compose(self):
-        p, cur = self.position, self.currency
+        yield Static(id="position-detail-body")
+
+    def on_mount(self) -> None:
+        self.refresh_data(self.position, self.series)
+
+    def refresh_data(self, position, series) -> None:
+        self.position = position
+        self.series = series
+        p, cur = position, self.currency
         ex = self.resolver.exchange(p.ticker) or ""
         tag = PNL_TAG[f.pnl_class(p.ppl)]
         lines = [
@@ -35,7 +43,8 @@ class PositionDetail(ModalScreen):
             f"[dim]FX P&L[/dim]        {f.signed_money(p.fx_ppl or 0.0, cur, blur=self.privacy)}",
             f"[dim]First fill[/dim]    {p.created_at.date() if p.created_at else '—'}",
         ]
-        if self.series:
+        if series:
             lines.append("")
-            lines.append(f"[dim]Recorded value[/dim]  {sparkline([v for _, v in self.series], 40)}")
-        yield Static(Content.from_markup("\n".join(lines)))
+            lines.append(f"[dim]Recorded value[/dim]  {sparkline([v for _, v in series], 40)}")
+        self.query_one("#position-detail-body", Static).update(
+            Content.from_markup("\n".join(lines)))

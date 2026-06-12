@@ -30,6 +30,7 @@ class Positions(Static):
             f"[dim]POSITIONS · {len(positions)} holdings · "
             f"sorted by {self.sort_label} ↓[/dim]"))
         table = self.query_one("#positions-table", DataTable)
+        prev_row = table.cursor_row
         width = self.app.size.width or 120
         cols = columns_for_width(POSITION_COLUMNS_FULL, POSITION_COLUMNS_COMPACT, width)
         money = f.compact_money if width < 64 else f.money
@@ -57,6 +58,8 @@ class Positions(Static):
                 "WEIGHT": f"{weight * 100:.1f}%",
             }
             table.add_row(*[full[c] for c in cols], key=p.ticker)
+        if table.row_count and prev_row and prev_row > 0:
+            table.move_cursor(row=min(prev_row, table.row_count - 1))
 
     def _sortfn(self, p):
         return {"pnl_pct": p.pnl_pct or 0.0, "value": p.market_value,

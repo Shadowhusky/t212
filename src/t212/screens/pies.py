@@ -20,6 +20,7 @@ class Pies(Static):
     def update_data(self, *, pies, currency: str, privacy: bool, names=None) -> None:
         names = names or {}
         table = self.query_one("#pies-table", DataTable)
+        prev_row = table.cursor_row
         table.clear()
         if not pies:
             table.add_row("No pies", *[""] * (len(COLUMNS) - 1))
@@ -38,3 +39,5 @@ class Pies(Static):
                 pie.status or "—",
                 key=str(pie.id),
             )
+        if table.row_count and prev_row and prev_row > 0:
+            table.move_cursor(row=min(prev_row, table.row_count - 1))
