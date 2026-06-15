@@ -5,7 +5,7 @@ from textual.widgets import DataTable, Static
 from textual.content import Content
 from t212 import formatting as f
 from t212.models import Dividend, HistoricalOrder, Transaction
-from t212.widgets.render import pnl_cell
+from t212.widgets.render import pnl_cell, num, col_headers
 
 SECTIONS = ["orders", "dividends", "transactions"]
 HEADERS = {
@@ -14,6 +14,8 @@ HEADERS = {
     "dividends": ["DATE", "NAME", "TYPE", "QTY", "PER SHARE", "AMOUNT", "TOTAL"],
     "transactions": ["DATE", "TYPE", "AMOUNT", "BALANCE"],
 }
+NUMERIC = {"QTY", "FILL", "VALUE", "REAL.P&L", "FEES", "PER SHARE", "AMOUNT",
+           "TOTAL", "BALANCE"}
 _MODELS = {"orders": HistoricalOrder, "dividends": Dividend, "transactions": Transaction}
 _DIV_TYPES = {"ORDINARY": "Ord", "INTEREST": "Int", "DIVIDEND": "Div"}
 
@@ -54,7 +56,7 @@ class History(Static):
         self._fees = self._div_total = self._balance = self._net_deposits = 0.0
         table = self.query_one("#history-table", DataTable)
         table.clear(columns=True)
-        table.add_columns(*HEADERS[section])
+        table.add_columns(*col_headers(HEADERS[section], NUMERIC))
         fetch = {"orders": self.client.history_orders,
                  "dividends": self.client.dividends,
                  "transactions": self.client.transactions}[section]
@@ -91,11 +93,11 @@ class History(Static):
                     f.display_ticker(h.ticker) or "—",
                     (o.side if o else None) or "—",
                     (o.type if o else None) or "—",
-                    f"{o.filled_quantity:g}" if o and o.filled_quantity else "—",
-                    f"{fill_price:,.2f}" if fill_price else "—",
-                    f.money(o.filled_value, cur) if o and o.filled_value else "—",
+                    num(f"{o.filled_quantity:g}" if o and o.filled_quantity else "—"),
+                    num(f"{fill_price:,.2f}" if fill_price else "—"),
+                    num(f.money(o.filled_value, cur) if o and o.filled_value else "—"),
                     pnl_cell(h.realized_pnl, cur),
-                    Text(f.money(h.total_taxes, cur), style="dim"),
+                    Text(f.money(h.total_taxes, cur), style="dim", justify="right"),
                     (o.status if o else None) or "—")
         elif self.section == "dividends":
             for d in items:
@@ -106,9 +108,9 @@ class History(Static):
                     d.paid_on.strftime("%Y-%m-%d") if d.paid_on else "—",
                     name[:24],
                     _div_type(d.type),
-                    f"{d.quantity:g}" if d.quantity else "—",
-                    f"{d.gross_per_share:,.4f}" if d.gross_per_share else "—",
-                    f.money(d.amount, cur), f.money(self._div_total, cur))
+                    num(f"{d.quantity:g}" if d.quantity else "—"),
+                    num(f"{d.gross_per_share:,.4f}" if d.gross_per_share else "—"),
+                    num(f.money(d.amount, cur)), num(f.money(self._div_total, cur)))
         else:
             for tx in items:
                 self._balance += tx.amount
@@ -116,7 +118,8 @@ class History(Static):
                     self._net_deposits += tx.amount
                 table.add_row(
                     tx.date_time.strftime("%Y-%m-%d") if tx.date_time else "—",
-                    tx.type, f.signed_money(tx.amount, cur), f.money(self._balance, cur))
+                    tx.type, num(f.signed_money(tx.amount, cur)),
+                    num(f.money(self._balance, cur)))
 
     def _render_chrome(self) -> None:
         cur = self.currency

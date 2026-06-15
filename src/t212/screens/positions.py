@@ -3,9 +3,11 @@ from textual.app import ComposeResult
 from textual.content import Content
 from textual.widgets import DataTable, Static
 from t212 import formatting as f
-from t212.widgets.render import pnl_cell, columns_for_width, POSITION_COLUMNS_FULL, POSITION_COLUMNS_COMPACT
+from t212.widgets.render import (pnl_cell, num, col_headers, columns_for_width,
+                                 POSITION_COLUMNS_FULL, POSITION_COLUMNS_COMPACT)
 
 SORT_LABELS = {"pnl_pct": "P&L %", "value": "value", "pnl": "P&L £"}
+NUMERIC = {"QTY", "AVG", "NOW", "VALUE", "P&L", "P&L%", "FX", "WEIGHT"}
 
 
 class Positions(Static):
@@ -17,7 +19,7 @@ class Positions(Static):
     def compose(self) -> ComposeResult:
         yield Static("", id="positions-chrome")
         table = DataTable(id="positions-table", cursor_type="row", zebra_stripes=False)
-        table.add_columns(*POSITION_COLUMNS_FULL)
+        table.add_columns(*col_headers(POSITION_COLUMNS_FULL, NUMERIC))
         yield table
 
     @property
@@ -40,7 +42,7 @@ class Positions(Static):
         cols = columns_for_width(POSITION_COLUMNS_FULL, POSITION_COLUMNS_COMPACT, width)
         money = f.compact_money if width < 64 else f.money
         table.clear(columns=True)
-        table.add_columns(*cols)
+        table.add_columns(*col_headers(cols, NUMERIC))
         rows = sorted(positions, key=self._sortfn, reverse=self._reverse)
         if not rows:
             table.add_row("No direct positions. Holdings inside pies live in the Pies tab (3).",
@@ -53,14 +55,14 @@ class Positions(Static):
             full = {
                 "TICKER": f.display_ticker(p.ticker),
                 "NAME": p.name[:22],
-                "QTY": qty,
-                "AVG": f"{p.average_price:,.2f}",
-                "NOW": f"{p.current_price:,.2f}",
-                "VALUE": money(p.market_value, currency, blur=privacy),
+                "QTY": num(qty),
+                "AVG": num(f"{p.average_price:,.2f}"),
+                "NOW": num(f"{p.current_price:,.2f}"),
+                "VALUE": num(money(p.market_value, currency, blur=privacy)),
                 "P&L": pnl_cell(p.ppl, currency, blur=privacy),
-                "P&L%": f.percent(pct),
+                "P&L%": num(f.percent(pct)),
                 "FX": pnl_cell(p.fx_ppl, currency, blur=privacy),
-                "WEIGHT": f"{weight * 100:.1f}%",
+                "WEIGHT": num(f"{weight * 100:.1f}%"),
             }
             table.add_row(*[full[c] for c in cols], key=p.ticker)
         if table.row_count and prev_row and prev_row > 0:

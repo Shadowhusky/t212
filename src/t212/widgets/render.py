@@ -42,11 +42,21 @@ def pnl_markup(value: float, pct: float | None, currency: str, *, blur: bool = F
 
 
 def pnl_cell(value: float, currency: str, pct: float | None = None, *, blur: bool = False) -> Text:
-    """Rich Text with a valid named colour, for DataTable cells."""
+    """Rich Text with a valid named colour, right-justified for DataTable cells."""
     body = f"{f.arrow(value)} {f.signed_money(value, currency, blur=blur)}"
     if pct is not None:
         body += f"  {f.percent(pct)}"
-    return Text(body, style=_PNL_COLOR[f.pnl_class(value)])
+    return Text(body, style=_PNL_COLOR[f.pnl_class(value)], justify="right")
+
+
+def num(value: str) -> Text:
+    """Right-justified plain numeric cell."""
+    return Text(value, justify="right")
+
+
+def col_headers(labels, numeric):
+    """DataTable column labels with numeric ones right-justified."""
+    return [Text(c, justify="right") if c in numeric else c for c in labels]
 
 
 POSITION_COLUMNS_FULL = ["TICKER", "NAME", "QTY", "AVG", "NOW", "VALUE", "P&L", "P&L%", "FX", "WEIGHT"]
