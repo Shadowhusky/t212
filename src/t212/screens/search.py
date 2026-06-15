@@ -1,6 +1,7 @@
 from __future__ import annotations
 from textual import events
 from textual.app import ComposeResult
+from textual.content import Content
 from textual.widgets import DataTable, Input, Static
 from t212.models import Instrument
 from t212.resolve import Resolver
@@ -17,6 +18,7 @@ class Search(Static):
     def compose(self) -> ComposeResult:
         yield Input(placeholder="Search ticker / name / ISIN…", id="search-input",
                     select_on_focus=False)
+        yield Static("", id="search-hint")
         table = DataTable(id="search-table", cursor_type="row", zebra_stripes=False)
         table.add_columns(*COLUMNS)
         yield table
@@ -26,6 +28,18 @@ class Search(Static):
 
     def set_universe(self, instruments: list[Instrument]) -> None:
         self._instruments = instruments
+        self._render_hint()
+
+    def _render_hint(self, shown: int | None = None) -> None:
+        n = len(self._instruments)
+        if shown is None:
+            msg = (f"Type to search {n:,} instruments · holdings are marked ✓"
+                   if n else "Loading instruments…")
+        elif shown == 0:
+            msg = "No matches"
+        else:
+            msg = f"{shown} match{'es' if shown != 1 else ''}" + (" · showing first 200" if shown >= 200 else "")
+        self.query_one("#search-hint", Static).update(Content.from_markup(f"[dim]{msg}[/dim]"))
 
     async def on_input_changed(self, event: Input.Changed) -> None:
         self.set_query(event.value)
@@ -53,6 +67,7 @@ class Search(Static):
         table = self.query_one("#search-table", DataTable)
         table.clear()
         if not q:
+            self._render_hint()
             return
         matches = [i for i in self._instruments
                    if q in (i.ticker or "").lower()
@@ -65,3 +80,4 @@ class Search(Static):
                 i.short_name or i.ticker, (i.name or "")[:24], i.type,
                 r.exchange(i.ticker) or "—", i.currency_code or "—",
                 f"✓ {held:g}" if held else "—", key=i.ticker)
+        self._render_hint(len(matches))
