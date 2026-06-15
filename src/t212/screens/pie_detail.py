@@ -1,10 +1,10 @@
 from __future__ import annotations
 from rich.text import Text
-from textual.screen import ModalScreen
+from textual.app import ComposeResult
 from textual.widgets import DataTable, Static
 from textual.content import Content
-from textual.binding import Binding
 from t212 import formatting as f
+from t212.widgets.modal import DetailModal
 from t212.widgets.render import bar, pnl_cell
 
 COLUMNS = ["INSTRUMENT", "NOW", "TARGET", "DRIFT", "OWNED", "RESULT", "RESULT%", "ISSUES"]
@@ -18,9 +18,7 @@ def _issues_cell(issues) -> Text | str:
     return Text(f"⚠ {names}", style="dim" if informative else "yellow")
 
 
-class PieDetailScreen(ModalScreen):
-    BINDINGS = [Binding("escape", "dismiss", "Back")]
-
+class PieDetailScreen(DetailModal):
     def __init__(self, detail, resolver, currency, privacy, pie=None):
         super().__init__()
         self.detail = detail
@@ -29,7 +27,15 @@ class PieDetailScreen(ModalScreen):
         self.privacy = privacy
         self.pie = pie
 
-    def compose(self):
+    def compose_body(self) -> ComposeResult:
+        yield Static(id="pie-header")
+        yield Static(id="pie-settings")
+        yield Static(id="pie-dividends")
+        table = DataTable(id="pie-instruments", cursor_type="row", zebra_stripes=False)
+        table.add_columns(*COLUMNS)
+        yield table
+
+    def populate(self) -> None:
         s = self.detail.settings
         cur = self.currency
         header = f"[b]‹ Pies / {s.name or s.id}[/b]"
@@ -38,7 +44,7 @@ class PieDetailScreen(ModalScreen):
         if self.pie is not None and self.pie.progress is not None:
             header += (f"\n[dim]goal[/dim] {bar(self.pie.progress)} "
                        f"{f.percent(self.pie.progress, signed=False)}")
-        yield Static(Content.from_markup(header), id="pie-header")
+        self.query_one("#pie-header", Static).update(Content.from_markup(header))
         action = s.dividend_cash_action or "—"
         if action != "REINVEST" and action != "—":
             action = "to cash"
@@ -52,16 +58,17 @@ class PieDetailScreen(ModalScreen):
         if s.end_date:
             rows.append(("End date", s.end_date.date()))
         body = "\n".join(f"[dim]{k:<10}[/dim]{v}" for k, v in rows)
-        yield Static(Content.from_markup(body), id="pie-settings")
+        self.query_one("#pie-settings", Static).update(Content.from_markup(body))
+        dividends = self.query_one("#pie-dividends", Static)
         if self.pie is not None:
             d = self.pie.dividend_details
-            yield Static(Content.from_markup(
+            dividends.update(Content.from_markup(
                 f"[dim]Dividends gained {f.money(d.gained, cur, blur=self.privacy)} · "
                 f"reinvested {f.money(d.reinvested, cur, blur=self.privacy)} · "
-                f"in cash {f.money(d.in_cash, cur, blur=self.privacy)}[/dim]"),
-                id="pie-dividends")
-        table = DataTable(id="pie-instruments", cursor_type="row", zebra_stripes=False)
-        table.add_columns(*COLUMNS)
+                f"in cash {f.money(d.in_cash, cur, blur=self.privacy)}[/dim]"))
+        else:
+            dividends.display = False
+        table = self.query_one("#pie-instruments", DataTable)
         for ins in self.detail.instruments:
             drift = ins.current_share - ins.expected_share
             table.add_row(
@@ -74,4 +81,3 @@ class PieDetailScreen(ModalScreen):
                 f.percent(ins.result.result_coef),
                 _issues_cell(ins.issues),
             )
-        yield table

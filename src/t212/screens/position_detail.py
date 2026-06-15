@@ -1,32 +1,32 @@
 from __future__ import annotations
-from textual.screen import ModalScreen
+from textual.app import ComposeResult
 from textual.widgets import Static
 from textual.content import Content
-from textual.binding import Binding
 from t212 import formatting as f
+from t212.widgets.modal import DetailModal
 from t212.widgets.render import sparkline, PNL_TAG
 
 
-class PositionDetail(ModalScreen):
-    BINDINGS = [Binding("escape", "dismiss", "Back")]
-
-    def __init__(self, position, resolver, currency, series, privacy):
+class PositionDetail(DetailModal):
+    def __init__(self, position, resolver, currency, series, privacy, today=None):
         super().__init__()
         self.position = position
         self.resolver = resolver
         self.currency = currency
         self.series = series
         self.privacy = privacy
+        self.today = today
 
-    def compose(self):
+    def compose_body(self) -> ComposeResult:
         yield Static(id="position-detail-body")
 
-    def on_mount(self) -> None:
-        self.refresh_data(self.position, self.series)
+    def populate(self) -> None:
+        self.refresh_data(self.position, self.series, self.today)
 
-    def refresh_data(self, position, series) -> None:
+    def refresh_data(self, position, series, today=None) -> None:
         self.position = position
         self.series = series
+        self.today = today
         p, cur = position, self.currency
         ex = self.resolver.exchange(p.ticker) or ""
         tag = PNL_TAG[f.pnl_class(p.ppl)]
@@ -43,6 +43,11 @@ class PositionDetail(ModalScreen):
             f"[dim]FX P&L[/dim]        {f.signed_money(p.fx_ppl or 0.0, cur, blur=self.privacy)}",
             f"[dim]First fill[/dim]    {p.created_at.date() if p.created_at else '—'}",
         ]
+        if today is not None:
+            ttag = PNL_TAG[f.pnl_class(today)]
+            lines.append(
+                f"[dim]Today[/dim]         "
+                f"[{ttag}]{f.arrow(today)} {f.signed_money(today, cur, blur=self.privacy)}[/{ttag}]")
         if series:
             lines.append("")
             lines.append(f"[dim]Recorded value[/dim]  {sparkline([v for _, v in series], 40)}")

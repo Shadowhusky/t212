@@ -1,9 +1,9 @@
 from __future__ import annotations
 from datetime import date, datetime, timezone
-from textual.screen import ModalScreen
+from textual.app import ComposeResult
 from textual.widgets import Static
 from textual.content import Content
-from textual.binding import Binding
+from t212.widgets.modal import DetailModal
 
 
 def today_hours(events, day: date) -> tuple[datetime | None, datetime | None]:
@@ -25,16 +25,17 @@ def market_line(resolver, ticker: str, day: date | None = None) -> str:
     return f"[dim]Market: {name} · no session today[/dim]"
 
 
-class InstrumentDetail(ModalScreen):
-    BINDINGS = [Binding("escape", "dismiss", "Back")]
-
+class InstrumentDetail(DetailModal):
     def __init__(self, instrument, resolver, held_qty):
         super().__init__()
         self.instrument = instrument
         self.resolver = resolver
         self.held_qty = held_qty
 
-    def compose(self):
+    def compose_body(self) -> ComposeResult:
+        yield Static(id="instrument-detail-body")
+
+    def populate(self) -> None:
         i = self.instrument
         rows = [("Ticker", i.ticker), ("Type", i.type), ("ISIN", i.isin or "—"),
                 ("Currency", i.currency_code or "—"),
@@ -46,4 +47,5 @@ class InstrumentDetail(ModalScreen):
         body = f"[b]‹ {i.short_name or i.ticker} · {i.name or ''}[/b]\n\n"
         body += "\n".join(f"[dim]{k:<10}[/dim]{v}" for k, v in rows)
         body += "\n\n" + market_line(self.resolver, i.ticker)
-        yield Static(Content.from_markup(body))
+        self.query_one("#instrument-detail-body", Static).update(
+            Content.from_markup(body))
