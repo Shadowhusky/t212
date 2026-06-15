@@ -11,12 +11,11 @@ class DetailModal(ModalScreen):
     DEFAULT_CSS = """
     DetailModal { align: center middle; }
     DetailModal > #modal-frame {
-        width: auto; max-width: 96%;
+        width: 78; max-width: 96%;
         height: auto; max-height: 90%;
         padding: 1 2; background: $panel; border: round $accent;
     }
     DetailModal #modal-hint { color: $text-muted; margin-top: 1; }
-    DetailModal #modal-frame:focus { border: round $accent; }
     """
     BINDINGS = [Binding("escape", "dismiss", "Back")]
     HINT = "esc back · ↑↓ scroll"

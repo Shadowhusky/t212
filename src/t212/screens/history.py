@@ -88,10 +88,13 @@ class History(Static):
                 fill_price = h.fill.price if h.fill else None
                 self._count += 1
                 self._fees += h.total_taxes
+                side = (o.side if o else None) or "—"
+                side_cell = Text(side, style="green" if side == "BUY" else
+                                 "red" if side == "SELL" else "dim")
                 table.add_row(
                     o.created_at.strftime("%m-%d %H:%M") if o and o.created_at else "—",
                     f.display_ticker(h.ticker) or "—",
-                    (o.side if o else None) or "—",
+                    side_cell,
                     (o.type if o else None) or "—",
                     num(f"{o.filled_quantity:g}" if o and o.filled_quantity else "—"),
                     num(f"{fill_price:,.2f}" if fill_price else "—"),
