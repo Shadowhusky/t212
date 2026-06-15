@@ -57,6 +57,7 @@ class T212App(App):
         self._polling = False
         self._refresh_running = False
         self._first_paint_done = False
+        self._base_dirty = False
         self._pending_client = None
         self._reauth_prompted = False
         self._theme_idx = 0
@@ -199,38 +200,39 @@ class T212App(App):
                 self.query_one("#search").set_universe(self.resolver.all_instruments())
         positions = data.get("positions", [])
         pies = data.get("pies")
-        if {"summary", "positions"} & fetched or not self._first_paint_done:
+        base_active = not self._modal_open()
+        data_tick = bool({"summary", "positions"} & fetched) or not self._first_paint_done
+        if data_tick:
             if summary is not None:
                 self.store.record(summary, positions, self.currency)
             today = 0.0
             if summary is not None:
                 base = self.store.today_baseline()
                 today = (summary.total_value - base) if base is not None else 0.0
-            self.query_one(SummaryHeader).update_data(
-                total=summary.total_value if summary else 0.0, today=today,
-                free=summary.cash.available_to_trade if summary else 0.0,
-                invested=summary.investments.total_cost if summary else 0.0,
-                status=status, privacy=self.privacy)
             self._summary = summary
             self._today = today
             self._positions = positions
             self._free = summary.cash.available_to_trade if summary else 0.0
-            if summary is not None:
-                total_value = sum(p.market_value for p in positions) + summary.cash.available_to_trade
-                self.query_one("#positions").update_data(
-                    positions=positions, resolver=self.resolver, currency=self.currency,
-                    total_value=total_value, privacy=self.privacy)
-            if "positions" in fetched:
-                self._refresh_position_detail()
-        else:
-            self.query_one(SummaryHeader).set_status(status)
         self._orders = data.get("orders")
         if pies is not None:
             self._pies = pies
-        self._render_dashboard()
-        if pies is not None and ("pies" in fetched or not self._first_paint_done):
-            self._dispatch_pies()
-            self._ensure_pie_names()
+        pies_tick = pies is not None and ("pies" in fetched or not self._first_paint_done)
+        if base_active:
+            if data_tick or self._base_dirty:
+                self.query_one(SummaryHeader).update_data(**self._header_kwargs(status))
+                self._repaint_positions()
+            else:
+                self.query_one(SummaryHeader).set_status(status)
+            self._render_dashboard()
+            if pies_tick or self._base_dirty:
+                self._dispatch_pies()
+                self._ensure_pie_names()
+            self._base_dirty = False
+        else:
+            self.query_one(SummaryHeader).set_status(status)
+            if "positions" in fetched:
+                self._refresh_position_detail()
+            self._base_dirty = True
         if summary is not None and not self._history_loaded:
             self._history_loaded = True
             self.run_worker(self.load_history_caches())
@@ -240,6 +242,35 @@ class T212App(App):
             self._initial_focus_done = True
             self._focus_primary(self.active_tab)
 
+    def _modal_open(self) -> bool:
+        return len(self.screen_stack) > 1
+
+    def _open_pnl(self) -> tuple[float, float]:
+        if self._summary is None:
+            return 0.0, 0.0
+        pnl = self._summary.investments.unrealized_pnl
+        cost = self._summary.investments.total_cost
+        return pnl, (pnl / cost if cost else 0.0)
+
+    def _header_kwargs(self, status: str) -> dict:
+        open_pnl, open_pnl_pct = self._open_pnl()
+        return dict(
+            total=self._summary.total_value if self._summary else 0.0,
+            today=self._today, free=self._free,
+            invested=self._summary.investments.total_cost if self._summary else 0.0,
+            open_pnl=open_pnl, open_pnl_pct=open_pnl_pct,
+            status=status, privacy=self.privacy)
+
+    def _repaint_positions(self) -> None:
+        if self._summary is None:
+            return
+        open_pnl, open_pnl_pct = self._open_pnl()
+        total_value = sum(p.market_value for p in self._positions) + self._free
+        self.query_one("#positions").update_data(
+            positions=self._positions, resolver=self.resolver, currency=self.currency,
+            total_value=total_value, privacy=self.privacy,
+            open_pnl=open_pnl, open_pnl_pct=open_pnl_pct)
+
     def _refresh_position_detail(self) -> None:
         from t212.screens.position_detail import PositionDetail
         if not isinstance(self.screen, PositionDetail):
@@ -248,7 +279,9 @@ class T212App(App):
                   if x.ticker == self.screen.position.ticker), None)
         if p is not None:
             self.screen.privacy = self.privacy
-            self.screen.refresh_data(p, self.store.position_series(p.ticker))
+            baseline = self.store.position_today_baseline(p.ticker)
+            today = (p.market_value - baseline) if baseline is not None else None
+            self.screen.refresh_data(p, self.store.position_series(p.ticker), today)
 
     def _render_dashboard(self) -> None:
         if self._summary is None:
@@ -383,15 +416,15 @@ class T212App(App):
         if self._summary is None:
             return
         status = "● live" if self.scheduler.last_error is None else "◐ reconnecting"
-        self.query_one(SummaryHeader).update_data(
-            total=self._summary.total_value, today=self._today, free=self._free,
-            invested=self._summary.investments.total_cost, status=status, privacy=privacy)
+        self.query_one(SummaryHeader).update_data(**self._header_kwargs(status))
         self._render_dashboard()
-        total_value = sum(p.market_value for p in self._positions) + self._free
-        self.query_one("#positions").update_data(
-            positions=self._positions, resolver=self.resolver, currency=self.currency,
-            total_value=total_value, privacy=privacy)
+        self._repaint_positions()
         self._dispatch_pies()
+        self._refresh_position_detail()
+
+    def on_screen_resume(self, event) -> None:
+        if self._first_paint_done and not self._modal_open():
+            self.run_worker(self._tick())
 
     def action_cycle_theme(self) -> None:
         names = theme_names()
@@ -438,9 +471,11 @@ class T212App(App):
             pos = next((p for p in self._positions if p.ticker == ticker), None)
             if pos is not None:
                 from t212.screens.position_detail import PositionDetail
+                baseline = self.store.position_today_baseline(ticker)
+                today = (pos.market_value - baseline) if baseline is not None else None
                 self.push_screen(PositionDetail(
                     pos, self.resolver, self.currency,
-                    self.store.position_series(ticker), self.privacy))
+                    self.store.position_series(ticker), self.privacy, today))
         elif tid == "pies-table":
             from t212.screens.pie_detail import PieDetailScreen
             pie_id = int(event.row_key.value)
@@ -490,10 +525,7 @@ class T212App(App):
         positions_widget = self.query_one("#positions")
         positions_widget.cycle_sort()
         if self._positions:
-            total_value = sum(p.market_value for p in self._positions) + self._free
-            positions_widget.update_data(
-                positions=self._positions, resolver=self.resolver, currency=self.currency,
-                total_value=total_value, privacy=self.privacy)
+            self._repaint_positions()
         self.notify(f"Sorted by {positions_widget.sort_label}", timeout=1.5)
 
 

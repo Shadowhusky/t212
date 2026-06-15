@@ -66,6 +66,22 @@ def test_opens_legacy_db_without_value_column(tmp_path):
     vals = s.position_series("AAPL_US_EQ", window_seconds=0)
     assert round(vals[-1][1], 2) == 2248.80
 
+def test_position_today_baseline_returns_earliest_same_day(tmp_path):
+    clk = FakeTime()
+    s = Store(tmp_path / "a.sqlite", clock=clk, throttle_seconds=0)
+    summary, pos = sample()
+    s.record(summary, pos, "GBP")
+    earliest = s.position_series("AAPL_US_EQ")[-1][1]
+    clk.t += 120
+    for p in pos:
+        p.wallet.current_value += 50.0
+    s.record(summary, pos, "GBP")
+    assert round(s.position_today_baseline("AAPL_US_EQ"), 2) == round(earliest, 2)
+
+def test_position_today_baseline_none_without_rows(tmp_path):
+    s = Store(tmp_path / "a.sqlite", clock=FakeTime(), throttle_seconds=0)
+    assert s.position_today_baseline("NOPE_US_EQ") is None
+
 def test_instrument_cache_roundtrip(tmp_path):
     s = Store(tmp_path / "a.sqlite", clock=FakeTime())
     payload = [{"ticker": "AAPL_US_EQ"}]

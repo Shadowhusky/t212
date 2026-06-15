@@ -66,11 +66,20 @@ class Store:
             (ticker, self._since(window_seconds)))
         return [(int(ts), float(v)) for ts, v in cur.fetchall()]
 
+    def _local_midnight(self) -> int:
+        return int(time.mktime(time.localtime(self._clock())[:3] + (0, 0, 0, 0, 0, -1)))
+
     def today_baseline(self) -> float | None:
-        midnight = int(time.mktime(time.localtime(self._clock())[:3] + (0, 0, 0, 0, 0, -1)))
         row = self.db.execute(
             "SELECT total FROM equity_snapshots WHERE ts >= ? ORDER BY ts LIMIT 1",
-            (midnight,)).fetchone()
+            (self._local_midnight(),)).fetchone()
+        return float(row[0]) if row else None
+
+    def position_today_baseline(self, ticker: str) -> float | None:
+        row = self.db.execute(
+            "SELECT COALESCE(value, quantity * current_price) FROM position_snapshots "
+            "WHERE ticker = ? AND ts >= ? ORDER BY ts LIMIT 1",
+            (ticker, self._local_midnight())).fetchone()
         return float(row[0]) if row else None
 
     def cache_instruments(self, payload: list) -> None:
