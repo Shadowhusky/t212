@@ -25,10 +25,15 @@ class Positions(Static):
         return SORT_LABELS[self._sort_key]
 
     def update_data(self, *, positions, resolver, currency: str, total_value: float,
-                    privacy: bool) -> None:
+                    privacy: bool, open_pnl: float = 0.0, open_pnl_pct: float = 0.0) -> None:
+        pnl_tag = "$success" if f.pnl_class(open_pnl) == "gain" else (
+            "$error" if f.pnl_class(open_pnl) == "loss" else "$text-muted")
+        pnl_txt = (f"{f.arrow(open_pnl)} {f.signed_money(open_pnl, currency, blur=privacy)} "
+                   f"{f.percent(open_pnl_pct)}")
         self.query_one("#positions-chrome", Static).update(Content.from_markup(
-            f"[dim]POSITIONS · {len(positions)} holdings · "
-            f"sorted by {self.sort_label} ↓[/dim]"))
+            f"[dim]POSITIONS · {len(positions)} holdings · open P&L [/dim]"
+            f"[{pnl_tag}]{pnl_txt}[/{pnl_tag}]"
+            f"[dim] · sorted by {self.sort_label} ↓[/dim]"))
         table = self.query_one("#positions-table", DataTable)
         prev_row = table.cursor_row
         width = self.app.size.width or 120
