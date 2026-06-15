@@ -12,6 +12,11 @@ def _plain(widget) -> str:
     return v.plain if hasattr(v, "plain") else str(v)
 
 
+def _dash(app) -> str:
+    return "\n".join(_plain(app.query_one(sel, Static))
+                     for sel in ("#dash-left", "#dash-right", "#dash-equity"))
+
+
 async def test_dashboard_shows_value_and_pnl():
     app = T212App(client=MockT212Client(FIX), environment="demo", currency="GBP")
     async with app.run_test() as pilot:
@@ -19,7 +24,7 @@ async def test_dashboard_shows_value_and_pnl():
         await app.do_refresh()
         await pilot.pause()
         assert "£24,813.07" in _plain(app.query_one(SummaryHeader))
-        assert "+£1,204.33" in _plain(app.query_one("#dash-metrics", Static))
+        assert "+£1,204.33" in _dash(app)
 
 
 async def test_dashboard_renders_equity_when_points_exist():
@@ -34,7 +39,7 @@ async def test_dashboard_renders_equity_when_points_exist():
         app.store.db.commit()
         app._render_dashboard()
         await pilot.pause()
-        text = _plain(app.query_one("#dash-metrics", Static))
+        text = _dash(app)
         assert "EQUITY" in text
 
 
@@ -46,7 +51,7 @@ async def test_dashboard_orders_scope_hint():
     async with app.run_test() as pilot:
         await app.do_refresh()
         await pilot.pause()
-        text = _plain(app.query_one("#dash-metrics", Static))
+        text = _dash(app)
         assert "enable the 'Orders' scope" in text
 
 
@@ -55,7 +60,7 @@ async def test_dashboard_pending_orders_listed():
     async with app.run_test() as pilot:
         await app.do_refresh()
         await pilot.pause()
-        text = _plain(app.query_one("#dash-metrics", Static))
+        text = _dash(app)
         assert "PENDING ORDERS" in text
         assert "BUY LIMIT AAPL 2 @ 180.00" in text
         assert "SELL STOP TSLA 4 stop 220.00" in text
@@ -67,7 +72,7 @@ async def test_dashboard_income_and_deposits():
         await app.do_refresh()
         await app.load_history_caches()
         await pilot.pause()
-        text = _plain(app.query_one("#dash-metrics", Static))
+        text = _dash(app)
         assert "Dividends   £16.30" in text
         assert "Interest    £1.95" in text
         assert "Net deposits £1,300.00" in text
@@ -81,6 +86,6 @@ async def test_dashboard_pies_strip():
         await app.do_refresh()
         await app.load_pie_names([42])
         await pilot.pause()
-        text = _plain(app.query_one("#dash-metrics", Static))
+        text = _dash(app)
         assert "PIES" in text
         assert "Growth Pie" in text

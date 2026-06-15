@@ -20,6 +20,32 @@ def sparkline(values: list[float], width: int = 20) -> str:
     return "".join(_SPARK[min(len(_SPARK) - 1, int((v - lo) / span * (len(_SPARK) - 1)))] for v in pts)
 
 
+def _resample(values: list[float], width: int) -> list[float]:
+    if len(values) <= width:
+        return values
+    step = (len(values) - 1) / (width - 1)
+    return [values[round(i * step)] for i in range(width)]
+
+
+def area_chart(values: list[float], width: int = 60, height: int = 5) -> list[str]:
+    """Multi-row filled area chart; returns `height` strings top-to-bottom."""
+    pts = _resample(values, width)
+    lo, hi = min(pts), max(pts)
+    span = (hi - lo) or 1.0
+    levels = height * 8  # eighths of a cell
+    rows = [[" "] * len(pts) for _ in range(height)]
+    for x, v in enumerate(pts):
+        filled = round((v - lo) / span * (levels - 1)) + 1
+        for r in range(height):
+            cell_from_bottom = height - 1 - r
+            base = cell_from_bottom * 8
+            if filled >= base + 8:
+                rows[r][x] = "█"
+            elif filled > base:
+                rows[r][x] = _SPARK[filled - base - 1]
+    return ["".join(row) for row in rows]
+
+
 def pnl_text(value: float, pct: float | None, currency: str, *, blur: bool = False) -> Text:
     cls = f.pnl_class(value)
     body = f"{f.arrow(value)} {f.signed_money(value, currency, blur=blur)}"

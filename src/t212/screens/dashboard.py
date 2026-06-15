@@ -1,11 +1,11 @@
 from __future__ import annotations
 from textual.app import ComposeResult
-from textual.containers import Vertical
+from textual.containers import Horizontal, Vertical
 from textual.widgets import Static
 from textual.content import Content
 from t212 import formatting as f
 from t212.charts import window_series
-from t212.widgets.render import bar, PNL_TAG, pnl_markup, sparkline
+from t212.widgets.render import area_chart, bar, PNL_TAG, pnl_markup
 
 ORDERS_SCOPE_HINT = ("[dim]Pending orders: not available — enable the 'Orders' scope "
                      "for your API key in Trading 212 → Settings → API[/dim]")
@@ -14,54 +14,73 @@ _TIF = {"GOOD_TILL_CANCEL": "GTC", "DAY": "DAY"}
 
 
 class Dashboard(Vertical):
+    DEFAULT_CSS = """
+    Dashboard { height: auto; padding: 0 1; }
+    Dashboard #dash-cards { height: auto; }
+    Dashboard #dash-left { width: 1fr; padding-right: 2; }
+    Dashboard #dash-right { width: 1fr; }
+    Dashboard #dash-equity { height: auto; margin-top: 1; }
+    """
+
     def __init__(self):
         super().__init__(id="dashboard")
 
     def compose(self) -> ComposeResult:
-        yield Static("Loading…", id="dash-metrics")
+        with Horizontal(id="dash-cards"):
+            yield Static("Loading…", id="dash-left")
+            yield Static("", id="dash-right")
+        yield Static("", id="dash-equity")
 
     def update_data(self, *, summary, positions, resolver, currency: str, today: float,
                     series, privacy: bool, orders=None, pies=None, pie_names=None,
                     scope_errors=frozenset(), income=None, net_deposits=None) -> None:
         cur = currency
-        lines: list[str] = []
-        lines += _investments_lines(summary, cur, privacy)
-        lines.append("")
-        lines += _cash_lines(summary, cur, privacy)
+        left: list[str] = []
+        left += _investments_lines(summary, cur, privacy)
+        left.append("")
+        left += _cash_lines(summary, cur, privacy)
+        left.append("")
+        left += _income_lines(income, cur, privacy)
+        left.append("")
+        left += _deposits_lines(net_deposits, summary, cur, privacy)
+
+        right: list[str] = []
         if pies:
-            lines.append("")
-            lines += _pies_lines(pies, pie_names or {}, cur, privacy)
-        lines.append("")
-        lines += _orders_lines(orders, scope_errors)
-        lines.append("")
-        lines += _income_lines(income, cur, privacy)
-        lines.append("")
-        lines += _deposits_lines(net_deposits, summary, cur, privacy)
-        lines.append("")
-        lines.append("[dim]ALLOCATION · by type[/dim]")
+            right += _pies_lines(pies, pie_names or {}, cur, privacy)
+            right.append("")
+        right += _orders_lines(orders, scope_errors)
+        right.append("")
+        right.append("[dim]ALLOCATION · by type[/dim]")
         for label, frac in _alloc_by_type(positions, summary, resolver).items():
-            lines.append(f"{label:<7}{bar(frac)}  {frac * 100:>3.0f}%")
+            right.append(f"{label:<7}{bar(frac, 12)}  {frac * 100:>3.0f}%")
         if positions:
-            lines.append("")
-            lines.append("[dim]TOP MOVERS[/dim]")
+            right.append("")
+            right.append("[dim]TOP MOVERS[/dim]")
             for p in _top_movers(positions):
                 tag = PNL_TAG[f.pnl_class(p.ppl)]
-                lines.append(
+                right.append(
                     f"{f.display_ticker(p.ticker):<8}"
                     f"[{tag}]{f.arrow(p.ppl)} {f.percent(p.pnl_pct or 0.0)}[/{tag}]")
-        pts = [v for _, v in window_series(series or [], 0)]
-        if len(pts) >= 2:
-            lo, hi = min(pts), max(pts)
-            delta = pts[-1] - pts[0]
-            tag = PNL_TAG[f.pnl_class(delta)]
-            lines.append("")
-            lines.append(
-                f"[dim]EQUITY · since first run · "
-                f"low {f.money(lo, currency, blur=privacy)} · "
-                f"high {f.money(hi, currency, blur=privacy)} · [/dim]"
-                f"[{tag}]{f.arrow(delta)} {f.signed_money(delta, currency, blur=privacy)}[/{tag}]")
-            lines.append(f"[$accent]{sparkline(pts, 60)}[/$accent]")
-        self.query_one("#dash-metrics", Static).update(Content.from_markup("\n".join(lines)))
+
+        self.query_one("#dash-left", Static).update(Content.from_markup("\n".join(left)))
+        self.query_one("#dash-right", Static).update(Content.from_markup("\n".join(right)))
+        self.query_one("#dash-equity", Static).update(
+            Content.from_markup(_equity_block(series, cur, privacy)))
+
+
+def _equity_block(series, cur, privacy) -> str:
+    pts = [v for _, v in window_series(series or [], 0)]
+    if len(pts) < 2:
+        return ""
+    lo, hi = min(pts), max(pts)
+    delta = pts[-1] - pts[0]
+    tag = PNL_TAG[f.pnl_class(delta)]
+    head = (f"[dim]EQUITY · since first run · "
+            f"low {f.money(lo, cur, blur=privacy)} · "
+            f"high {f.money(hi, cur, blur=privacy)} · [/dim]"
+            f"[{tag}]{f.arrow(delta)} {f.signed_money(delta, cur, blur=privacy)}[/{tag}]")
+    chart = "\n".join(f"[$accent]{row}[/$accent]" for row in area_chart(pts, width=72, height=5))
+    return head + "\n" + chart
 
 
 def _investments_lines(summary, cur, privacy) -> list[str]:
