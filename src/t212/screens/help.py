@@ -9,7 +9,7 @@ _SECTIONS = [
     ("Search", "/ find from anywhere · type letters to filter · Esc → results"),
     ("History", "←/→ section · m load more"),
     ("Positions", "s sort · ◔ = quantity in pies"),
-    ("Display", "z privacy blur · t theme · r refresh now"),
+    ("Display", "z privacy · f focus mode · t theme · r refresh"),
     ("Other", "? this help · ^p command palette · q quit"),
 ]
 

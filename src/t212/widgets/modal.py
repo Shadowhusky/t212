@@ -20,6 +20,7 @@ class DetailModal(ModalScreen):
     BINDINGS = [
         Binding("escape", "dismiss", "Back"),
         Binding("z", "app.privacy", "Privacy", show=False),
+        Binding("f", "app.toggle_focus", "Focus", show=False),
         Binding("t", "app.cycle_theme", "Theme", show=False),
         Binding("r", "app.refresh_now", "Refresh", show=False),
     ]

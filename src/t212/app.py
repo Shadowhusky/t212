@@ -22,6 +22,7 @@ class T212App(App):
         Binding("4", "tab('history')", "History", show=False),
         Binding("5", "tab('search')", "Search", show=False),
         Binding("z", "privacy", "Privacy"),
+        Binding("f", "toggle_focus", "Focus"),
         Binding("t", "cycle_theme", "Theme"),
         Binding("r", "refresh_now", "Refresh"),
         Binding("s", "sort", "Sort"),
@@ -427,6 +428,13 @@ class T212App(App):
 
     def action_privacy(self) -> None:
         self.privacy = not self.privacy
+
+    def action_toggle_focus(self) -> None:
+        from t212.screens.focus import FocusScreen
+        if isinstance(self.screen, FocusScreen):
+            self.pop_screen()
+        else:
+            self.push_screen(FocusScreen())
 
     def watch_privacy(self, privacy: bool) -> None:
         from t212.widgets.modal import DetailModal
