@@ -89,11 +89,19 @@ class T212App(App):
         if self.scheduler is not None and self._refresh_override:
             self.scheduler.cadences["positions"] = float(max(1, self._refresh_override))
 
+    def _spawn(self, coro, name: str = "", exclusive: bool = False, group: str = "default"):
+        async def _runner():
+            try:
+                await coro
+            except Exception as exc:  # never let a worker crash the app
+                self.log.error(f"worker {name or group} failed: {exc!r}")
+        return self.run_worker(_runner(), name=name or group, group=group, exclusive=exclusive)
+
     def _start_polling(self) -> None:
         if not self._polling:
             self._polling = True
             self.set_interval(2.0, self._tick)
-        self.run_worker(self._tick())
+        self._spawn(self._tick(), name="startup-tick", group="tick")
 
     async def _tick(self) -> None:
         if self._refresh_running:
@@ -101,6 +109,13 @@ class T212App(App):
         self._refresh_running = True
         try:
             await self.do_refresh()
+        except Exception as exc:  # a dispatch/render bug must never wedge the loop
+            self.log.error(f"refresh tick failed: {exc!r}")
+            status = "◐ reconnecting" if self.scheduler.degraded else "● live"
+            try:
+                self.query_one(SummaryHeader).set_status(status)
+            except Exception:
+                pass
         finally:
             self._refresh_running = False
 
@@ -175,7 +190,7 @@ class T212App(App):
                                 status="[$error]saved key was rejected — "
                                        "re-enter your credentials[/$error]"),
                     callback=self._setup_done)
-        status = "● live" if self.scheduler.last_error is None else "◐ reconnecting"
+        status = "◐ reconnecting" if self.scheduler.degraded else "● live"
         if not fetched and self._first_paint_done:
             self.query_one(SummaryHeader).set_status(status)
             return
@@ -235,7 +250,7 @@ class T212App(App):
             self._base_dirty = True
         if summary is not None and not self._history_loaded:
             self._history_loaded = True
-            self.run_worker(self.load_history_caches())
+            self._spawn(self.load_history_caches(), name="history-caches", group="tick")
         if summary is not None:
             self._first_paint_done = True
         if not self._initial_focus_done:
@@ -304,7 +319,7 @@ class T212App(App):
         if not missing or self._pie_names_loading:
             return
         self._pie_names_loading = True
-        self.run_worker(self.load_pie_names(missing))
+        self._spawn(self.load_pie_names(missing), name="pie-names", group="pie-names")
 
     async def load_pie_names(self, ids: list[int]) -> None:
         try:
@@ -369,7 +384,8 @@ class T212App(App):
             self.scheduler.set_active(tab)
         if tab == "history":
             hist = self.query_one("#history")
-            self.run_worker(self._load_history_section(hist, hist.section))
+            self._spawn(self._load_history_section(hist, hist.section),
+                        name="history-load", exclusive=True, group="history")
         elif tab == "search":
             search = self.query_one("#search")
             search.held = {p.ticker: p.quantity for p in self._positions}
@@ -413,9 +429,13 @@ class T212App(App):
         self.privacy = not self.privacy
 
     def watch_privacy(self, privacy: bool) -> None:
+        from t212.widgets.modal import DetailModal
+        if isinstance(self.screen, DetailModal):
+            self.screen.privacy = self.privacy
+            self.screen.populate()
         if self._summary is None:
             return
-        status = "● live" if self.scheduler.last_error is None else "◐ reconnecting"
+        status = "◐ reconnecting" if self.scheduler.degraded else "● live"
         self.query_one(SummaryHeader).update_data(**self._header_kwargs(status))
         self._render_dashboard()
         self._repaint_positions()
@@ -424,7 +444,7 @@ class T212App(App):
 
     def on_screen_resume(self, event) -> None:
         if self._first_paint_done and not self._modal_open():
-            self.run_worker(self._tick())
+            self._spawn(self._tick(), name="resume-tick", group="tick")
 
     def action_cycle_theme(self) -> None:
         names = theme_names()
@@ -442,7 +462,7 @@ class T212App(App):
             await self._tick()
             self.notify("Refreshed", severity="information", timeout=2)
 
-        self.run_worker(_manual_refresh())
+        self._spawn(_manual_refresh(), name="manual-refresh", group="tick")
 
     def action_help(self) -> None:
         from t212.screens.help import HelpScreen
@@ -500,7 +520,8 @@ class T212App(App):
         from t212.screens.history import SECTIONS
         hist = self.query_one("#history")
         i = (SECTIONS.index(hist.section) + delta) % len(SECTIONS)
-        self.run_worker(self._load_history_section(hist, SECTIONS[i]))
+        self._spawn(self._load_history_section(hist, SECTIONS[i]),
+                    name="history-section", exclusive=True, group="history")
 
     def action_history_more(self) -> None:
         if self.active_tab != "history":
@@ -516,7 +537,7 @@ class T212App(App):
                 self.notify("No more pages", timeout=2)
             self._update_hintbar()
 
-        self.run_worker(_more())
+        self._spawn(_more(), name="history-more", group="history-more")
 
     def action_sort(self) -> None:
         if self.active_tab != "positions":
