@@ -47,6 +47,7 @@ class RefreshScheduler:
         self.last_error: Exception | None = None
         self.scope_errors: set[str] = set()
         self.last_fetched: set[str] = set()
+        self.consecutive_failures = 0
         self._fetchers = {
             "summary": client.summary,
             "positions": client.positions,
@@ -55,6 +56,10 @@ class RefreshScheduler:
             "instruments": client.instruments,
             "exchanges": client.exchanges,
         }
+
+    @property
+    def degraded(self) -> bool:
+        return self.consecutive_failures >= 2
 
     def set_active(self, tab: str) -> None:
         self._active = tab
@@ -93,6 +98,9 @@ class RefreshScheduler:
 
         await asyncio.gather(*(fetch(k) for k in due))
         self.last_fetched = fetched
-        if due and not errored:
+        if errored:
+            self.consecutive_failures += 1
+        if fetched:
+            self.consecutive_failures = 0
             self.last_error = None
         return dict(self._cache)

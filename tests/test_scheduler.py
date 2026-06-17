@@ -116,6 +116,12 @@ class Flaky(CountingClient):
         super().__init__(fixtures)
         self.fail = False
 
+    async def summary(self):
+        self._count("summary")
+        if self.fail:
+            raise RuntimeError("boom")
+        return await super().summary()
+
     async def positions(self):
         self._count("positions")
         if self.fail:
@@ -130,8 +136,21 @@ async def test_scheduler_keeps_last_good_on_error():
     c.fail = True
     t[0] = 10.0
     data = await sched.poll_once()
-    assert "positions" in data
+    assert "positions" in data  # last-good cache retained
     assert sched.last_error is not None
+
+
+async def test_partial_failure_stays_live():
+    # one fetcher fails but another succeeds → poll still counts as a success
+    class PositionsOnlyFail(CountingClient):
+        async def positions(self):
+            self._count("positions")
+            raise RuntimeError("boom")
+    sched, _ = make(PositionsOnlyFail(), tab="positions")
+    await sched.poll_once()
+    assert sched.last_error is None
+    assert sched.consecutive_failures == 0
+    assert sched.degraded is False
 
 
 async def test_failed_fetch_waits_for_cadence_before_retry():
@@ -147,6 +166,19 @@ async def test_failed_fetch_waits_for_cadence_before_retry():
     assert c.calls["positions"] == n + 1
 
 
+async def test_degraded_after_two_consecutive_full_failures():
+    c = Flaky()
+    sched, t = make(c, tab="positions")
+    c.fail = True
+    await sched.poll_once()
+    assert sched.consecutive_failures == 1
+    assert sched.degraded is False  # one blip stays live
+    t[0] = 10.0
+    await sched.poll_once()
+    assert sched.consecutive_failures == 2
+    assert sched.degraded is True
+
+
 async def test_scheduler_clears_error_on_recovery():
     c = Flaky()
     sched, t = make(c, tab="positions")
@@ -160,3 +192,5 @@ async def test_scheduler_clears_error_on_recovery():
     t[0] = 10.0
     await sched.poll_once()
     assert sched.last_error is None
+    assert sched.consecutive_failures == 0
+    assert sched.degraded is False
