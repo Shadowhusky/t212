@@ -69,6 +69,7 @@ class PieDetailScreen(DetailModal):
         else:
             dividends.display = False
         table = self.query_one("#pie-instruments", DataTable)
+        table.clear()
         for ins in self.detail.instruments:
             drift = ins.current_share - ins.expected_share
             table.add_row(

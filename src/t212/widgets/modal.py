@@ -17,7 +17,12 @@ class DetailModal(ModalScreen):
     }
     DetailModal #modal-hint { color: $text-muted; margin-top: 1; }
     """
-    BINDINGS = [Binding("escape", "dismiss", "Back")]
+    BINDINGS = [
+        Binding("escape", "dismiss", "Back"),
+        Binding("z", "app.privacy", "Privacy", show=False),
+        Binding("t", "app.cycle_theme", "Theme", show=False),
+        Binding("r", "app.refresh_now", "Refresh", show=False),
+    ]
     HINT = "esc back · ↑↓ scroll"
 
     def compose(self) -> ComposeResult:
