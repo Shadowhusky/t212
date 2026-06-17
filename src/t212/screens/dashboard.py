@@ -5,7 +5,7 @@ from textual.widgets import Static
 from textual.content import Content
 from t212 import formatting as f
 from t212.charts import window_series
-from t212.widgets.render import area_chart, bar, PNL_TAG, pnl_markup
+from t212.widgets.render import braille_area, bar, PNL_TAG, pnl_markup
 
 ORDERS_SCOPE_HINT = ("[dim]Pending orders: not available — enable the 'Orders' scope "
                      "for your API key in Trading 212 → Settings → API[/dim]")
@@ -79,7 +79,7 @@ def _equity_block(series, cur, privacy) -> str:
             f"low {f.money(lo, cur, blur=privacy)} · "
             f"high {f.money(hi, cur, blur=privacy)} · [/dim]"
             f"[{tag}]{f.arrow(delta)} {f.signed_money(delta, cur, blur=privacy)}[/{tag}]")
-    chart = "\n".join(f"[$accent]{row}[/$accent]" for row in area_chart(pts, width=72, height=5))
+    chart = "\n".join(f"[$accent]{row}[/$accent]" for row in braille_area(pts, width=72, height=5))
     return head + "\n" + chart
 
 

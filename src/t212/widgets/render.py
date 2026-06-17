@@ -27,6 +27,32 @@ def _resample(values: list[float], width: int) -> list[float]:
     return [values[round(i * step)] for i in range(width)]
 
 
+# braille dot bit per (sub-row-from-top 0..3, column 0=left 1=right)
+_BRAILLE = ((0x01, 0x08), (0x02, 0x10), (0x04, 0x20), (0x40, 0x80))
+
+
+def braille_area(values: list[float], width: int = 60, height: int = 6) -> list[str]:
+    """Smooth filled area chart at 2×4 sub-cell (braille) resolution.
+
+    Returns `height` strings, top row first.
+    """
+    if len(values) < 2:
+        return [""] * height
+    sub = _resample(values, width * 2)          # 2 sub-columns per cell
+    lo, hi = min(sub), max(sub)
+    span = (hi - lo) or 1.0
+    levels = height * 4                          # 4 dots per cell, vertically
+    grid = [[0] * width for _ in range(height)]
+    for sx, v in enumerate(sub):
+        col, side = divmod(sx, 2)
+        filled = max(1, round((v - lo) / span * (levels - 1)) + 1)
+        for p in range(filled):                 # p=0 bottom .. up
+            row = height - 1 - (p // 4)
+            subrow = 3 - (p % 4)
+            grid[row][col] |= _BRAILLE[subrow][side]
+    return ["".join(chr(0x2800 + c) if c else " " for c in row) for row in grid]
+
+
 def area_chart(values: list[float], width: int = 60, height: int = 5) -> list[str]:
     """Multi-row filled area chart; returns `height` strings top-to-bottom."""
     pts = _resample(values, width)
@@ -78,6 +104,28 @@ def pnl_cell(value: float, currency: str, pct: float | None = None, *, blur: boo
 def num(value: str) -> Text:
     """Right-justified plain numeric cell."""
     return Text(value, justify="right")
+
+
+_DIGITS = {
+    "0": ["███", "█ █", "█ █", "█ █", "███"],
+    "1": ["  █", "  █", "  █", "  █", "  █"],
+    "2": ["███", "  █", "███", "█  ", "███"],
+    "3": ["███", "  █", "███", "  █", "███"],
+    "4": ["█ █", "█ █", "███", "  █", "  █"],
+    "5": ["███", "█  ", "███", "  █", "███"],
+    "6": ["███", "█  ", "███", "█ █", "███"],
+    "7": ["███", "  █", "  █", "  █", "  █"],
+    "8": ["███", "█ █", "███", "█ █", "███"],
+    "9": ["███", "█ █", "███", "  █", "███"],
+    ":": [" ", "█", " ", "█", " "],
+    " ": [" ", " ", " ", " ", " "],
+}
+
+
+def big_digits(text: str) -> list[str]:
+    """Render a string of digits / colons as 5 rows of block art."""
+    glyphs = [_DIGITS.get(ch, _DIGITS[" "]) for ch in text]
+    return ["  ".join(g[row] for g in glyphs) for row in range(5)]
 
 
 def col_headers(labels, numeric):
