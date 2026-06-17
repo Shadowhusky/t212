@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import time
 import httpx
 from t212.api.base import ApiError, AuthError, RateLimited, ScopeError
@@ -32,12 +33,29 @@ class HttpT212Client:
             self._client = httpx.AsyncClient(
                 base_url=base_url, headers={"Authorization": api_key}, timeout=timeout)
 
-    async def _get(self, limit_key: str, path: str, params: dict | None = None):
-        await self._gov.acquire(limit_key)
+    async def _request(self, path: str, params: dict | None):
+        # ride out a single transient blip before surfacing it
         try:
             r = await self._client.get(path, params=params)
+        except (httpx.TransportError, httpx.TimeoutException):
+            await asyncio.sleep(0.4)
+            try:
+                return await self._client.get(path, params=params)
+            except httpx.HTTPError as e:
+                raise ApiError(str(e)) from e
         except httpx.HTTPError as e:
             raise ApiError(str(e)) from e
+        if r.status_code >= 500:
+            await asyncio.sleep(0.4)
+            try:
+                return await self._client.get(path, params=params)
+            except httpx.HTTPError as e:
+                raise ApiError(str(e)) from e
+        return r
+
+    async def _get(self, limit_key: str, path: str, params: dict | None = None):
+        await self._gov.acquire(limit_key)
+        r = await self._request(path, params)
         if r.status_code == 429:
             raw = float(r.headers.get("x-ratelimit-reset", "5"))
             # header may be a unix timestamp rather than seconds-from-now
