@@ -1,6 +1,6 @@
 [project]
 name = "t212-tui"
-version = "0.4.1"
+version = "0.5.0"
 description = "Read-only Trading 212 portfolio terminal"
 readme = "README.md"
 license = "MIT"

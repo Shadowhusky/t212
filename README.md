@@ -61,8 +61,10 @@ t212 config set-key                            # prompt → saved chmod 600
   local SQLite snapshot on each poll. The curve grows the longer you use it
   and is labelled *since first run*; nothing is back-filled.
 
-Plus: three themes (`t`), privacy blur for screen-sharing (`z`), and
-gains/losses always carry an arrow and sign — never colour alone.
+Plus: three themes (`t`), privacy blur for screen-sharing (`z`), and a **focus
+mode** (`f`) — a calm full-screen clock that hides every figure so a glance
+at the terminal while you're coding doesn't pull your attention. Gains/losses
+always carry an arrow and sign, never colour alone.
 
 ## Commands & keys
 
@@ -79,8 +81,9 @@ t212 --refresh 15 # poll interval in seconds
 | `1`–`5` | Switch tab | `s` | Sort (Positions) |
 | `↑`/`↓` `j`/`k` | Move | `m` | Load more (History) |
 | `Enter` / `Esc` | Open / close detail | `z` | Privacy blur |
-| `←` `→` | History section | `t` | Theme |
-| `r` | Refresh now | `?` | Help |
+| `←` `→` | History section | `f` | Focus mode |
+| `r` | Refresh now | `t` | Theme |
+| `/` | Search from anywhere | `?` | Help |
 
 ## How it behaves
 
