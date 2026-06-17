@@ -51,33 +51,44 @@ class History(Static):
 
     async def load_section(self, section: str) -> None:
         self.section = section
-        self._next_path = None
-        self._count = 0
-        self._fees = self._div_total = self._balance = self._net_deposits = 0.0
-        table = self.query_one("#history-table", DataTable)
-        table.clear(columns=True)
-        table.add_columns(*col_headers(HEADERS[section], NUMERIC))
         fetch = {"orders": self.client.history_orders,
                  "dividends": self.client.dividends,
                  "transactions": self.client.transactions}[section]
-        page = await fetch()
+        table = self.query_one("#history-table", DataTable)
+        try:
+            page = await fetch()
+        except Exception:
+            self._next_path = None
+            table.clear(columns=True)
+            table.add_columns(*col_headers(HEADERS[section], NUMERIC))
+            table.add_row("couldn't load — press r to retry",
+                          *[""] * (len(HEADERS[section]) - 1))
+            self._render_chrome()
+            return
+        self._next_path = None
+        self._count = 0
+        self._fees = self._div_total = self._balance = self._net_deposits = 0.0
+        table.clear(columns=True)
+        table.add_columns(*col_headers(HEADERS[section], NUMERIC))
         self._add_items(page.items)
         self._next_path = page.next_path
         if table.row_count == 0:
-            ncols = len(HEADERS[section])
-            table.add_row("(none)", *[""] * (ncols - 1))
+            table.add_row("(none)", *[""] * (len(HEADERS[section]) - 1))
         self._render_chrome()
 
     async def load_more(self) -> int | None:
         if not self._next_path:
             return None
-        raw = await self.client.get_page(self._next_path)
-        model = _MODELS[self.section]
-        items = [model.model_validate(x) for x in raw.get("items", [])]
-        self._add_items(items)
-        self._next_path = raw.get("nextPagePath")
-        self._render_chrome()
-        return len(items)
+        try:
+            raw = await self.client.get_page(self._next_path)
+            model = _MODELS[self.section]
+            items = [model.model_validate(x) for x in raw.get("items", [])]
+            self._add_items(items)
+            self._next_path = raw.get("nextPagePath")
+            self._render_chrome()
+            return len(items)
+        except Exception:
+            return None
 
     def _add_items(self, items) -> None:
         cur = self.currency
